@@ -13,34 +13,34 @@ int DIFS = 2 * slotTime + SIFS; // us
 int maxFrameSize = 1500; // bytes
 
 int CWmax = 1023 * slotTime; 	// us
-int CWmin = 15 * slotTime; 	// us
+int CWmin = 15; // *slotTime; 	// us---zasto množi s time slotom
 
 
-
-int CW[100]; // us, contention window
-int numberOfPackets[100];// broj paketa za svaku stanicu
-double backoffTime[100]; // backoff timer za svaku stanicu
 int numberOfPacketsOnNetwork = 0;
 
+typedef struct _station {
+	int numberOfPackets;// broj paketa za svaku stanicu
+	int CW; //us, postavljanje contention windowa na minimalnu vrijednost
+	double backoffTime; // backoff timer za svaku stanicu
+} Station;
+
 int main() {
+
 	printf("\nUnesite broj stanica u mrezi (4, 9, 25, 49 ili 100):\n");
 	scanf_s("%d", &numberOfStations);
+	Station* stations = (Station*) malloc(sizeof(Station) * numberOfStations);
+
 	srand(time(0));
 	//postavljanje pocetnih vrijednosti za svaku stanicu
 	for (int i = 0; i < numberOfStations; i++) {
-		CW[i] = CWmin; // postavljanje contention windowa na minimalnu vrijednost
-		numberOfPackets[i] = 1000; //dodjeljivanje 1000 paketa svakoj stanici
-		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + 1000;
-	
-		
-		backoffTime[i] = (rand() % CW[i]);//provjerit je li se ovako racuna!!!!
-		printf("\n%2f \n", backoffTime[i]);
-	
+		stations[i].numberOfPackets = 1000;
+		stations[i].CW = CWmin;
+		stations[i].backoffTime = ((rand() % stations[i].CW))*slotTime; //provjerit je li se ovako racuna!!!!
+		printf("\n%2f \n", stations[i].backoffTime);
 	}
 
 	while (numberOfPacketsOnNetwork > 0)
 	{
 
 	}
-
 }
