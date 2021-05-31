@@ -33,7 +33,7 @@ void generateBackoffTime(Station* stations, int stationIndex) {
 
 }
 
-void settingCW(Station* stations, int stationIndex) {
+void setCW(Station* stations, int stationIndex) {
 	
 	if (stations[stationIndex].counterOfColision == 0) {
 		stations[stationIndex].CW = CWmin;
@@ -57,7 +57,7 @@ void createStations(Station* stations) {
 	for (int i = 0; i < numberOfStations; i++) {
 		stations[i].counterOfColision = 0; //brojac kolizija
 		stations[i].numberOfPackets = 3; //broj paketa za stanicu
-		settingCW(stations, i);
+		setCW(stations, i);
 		generateBackoffTime(stations, i);
 		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].numberOfPackets;
 		printf("\n%2f \n", stations[i].backoffTime);
@@ -80,22 +80,11 @@ void checkCollision(Station* stations, int stationIndex){
 			if (stationIndex != i && stations[stationIndex].backoffTime == stations[i].backoffTime) {
 				stations[stationIndex].counterOfColision++;
 				stations[i].counterOfColision++;
-				//settingCW(stations, stationIndex);
-				//generateBackoffTime(stations, stationIndex);
-				//settingCW(stations, i);
-				//generateBackoffTime(stations, i);
-				//uduplat cw ovih i odredit nove backoffe
-				printf("\nProvjera kolizija  if i brojac kolizija : %d ", stations[i].counterOfColision);
+				printf("\nDogodila se kolizija i brojac kolizija : %d ", stations[i].counterOfColision);
 			}
 			else {
-				//settingCW(stations, stationIndex);
-				//generateBackoffTime(stations, stationIndex);
-				//numberOfPacketsOnNetwork--;
-				stations[stationIndex].numberOfPackets--;
-				//pošalji pakt
-				//resetiraj cw na min
-				//novi backoff
-				printf("\nProvjera kolizija  else");
+				
+				printf("\nNema kolizije");
 			}
 		}
 		//printf("\n Station index %d \n", stations[stationIndex].counterOfColision);
@@ -117,8 +106,8 @@ int main() {
 
 	createStations(stations);
 	qsort(stations, numberOfStations, sizeof(Station), compareBackoffTime);
-	printf("\n\n Nakon sorta ");
 
+	printf("\n\n Nakon sorta ");
 	for (int i = 0; i < numberOfStations; i++) {
 		printf("\n%2f \n", stations[i].backoffTime);
 	}
@@ -129,12 +118,39 @@ int main() {
 			checkCollision(stations, i);
 			
 		}
+	
+	//postavljanje cw i ponovno određivanje backofftimea
 	//nakon sta se for izvrši opet sortiram
+		for (int i = 0; i < numberOfStations; i++) {
+			if (stations[i].counterOfColision == 0) { //stanica nije bila u koliziji
+				setCW(stations, i);
+				generateBackoffTime(stations, i);
+				numberOfPacketsOnNetwork--;
+				stations[i].numberOfPackets--;
+				printf("\n------------------------\n");
+				printf("\n\nSTANICA %d JE POSLALA PAKET ", i);
+				//pošalji pakt
+				//resetiraj cw na min
+				//novi backoff
+			}
+			else {
+				setCW(stations, i);
+				generateBackoffTime(stations, i);
+				printf("\n------------------------\n");
+				printf("\n\nSTANICA %d NIJE POSLALA PAKET ", i);
+			    //uduplat cw ovih i odredit nove backoffe
+			}
+			
+			printf("\n\nNovi backofftime %2f \n", stations[i].backoffTime);
+			printf("\n\nNovi CW %d \n", stations[i].CW);
+			printf("\n------------------------\n");
+		}
+
 	printf("\n\n Brojaci ");
 	for (int i = 0; i < numberOfStations; i++) {
 
 		printf("\n%d\n", stations[i].counterOfColision);
-		}
+	}
 	
 
 	//}
