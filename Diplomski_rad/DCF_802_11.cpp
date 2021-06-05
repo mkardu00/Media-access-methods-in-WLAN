@@ -13,7 +13,6 @@ int maxFrameSize = 1500; // bytes//1040
 int ACK = 15;			//bytes
 int timeToSend = 1454; //us, 802.11g
 
-
 int CWmax = 1023; // * slotTime; 	// us
 int CWmin = 15; // *slotTime; 	// us---zasto množi s time slotom
 
@@ -38,6 +37,8 @@ typedef struct _station {
 	int counterOfCollision; //brojac uzastopnih kolizija
 	bool iteratonCollision; //provjerava koliziju za svaku iteraciju
 	double elapsedTime; //us, koliko je vremena proslo
+	//vrijeme nadmetanja;
+	double competeTime; 
 
 } Station;
 
@@ -55,6 +56,8 @@ void createStations(Station* stations) {
 		stations[i].iteratonCollision = 0;
 		stations[i].CW = CWmin;
 		stations[i].elapsedTime = 0;
+		stations[i].counterOfCollision = 0;
+		stations[i].competeTime = 0;
 		generateBackoffTime(&stations[i]);
 		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 		//printf("\nGenerirani backofftime %2f \n", stations[i].backoffTime);	
@@ -126,7 +129,6 @@ int main() {
 			arrayOfBackoffTime[i] = -1;
 	}
 
-	
 	Station* stations = (Station*) malloc(sizeof(Station) * numberOfStations);
 
 	createStations(stations);
@@ -162,7 +164,9 @@ int main() {
 					transmittedPackets += 1;
 					stations[i].elapsedTime += DIFS + stations[i].backoffTime + timeToSend + SIFS + ACK;
 					simulationTime += stations[i].elapsedTime;
-					competitionTime += stations[i].elapsedTime;
+					
+					//vrijeme nadmetanja, provjerit kako se racuna
+					stations[i].competeTime += DIFS + stations[i].backoffTime;
 					printf("\nProteklo vrijeme: %2f (us) ", stations[i].elapsedTime);
 				}
 				else {//stanica je bila u koliziji
@@ -188,24 +192,21 @@ int main() {
 					printf("\nPreostali broj paketa: %d ",stations[i].remainingPackets);
 					stations[i].elapsedTime += DIFS + stations[i].backoffTime + timeToSend + SIFS;
 					simulationTime += stations[i].elapsedTime;
-					competitionTime += stations[i].elapsedTime;
+					
 					printf("\nProteklo vrijeme: %2f (us) ", stations[i].elapsedTime);
+					//vrijeme nadmetanja, provjerit kako se racuna
+					stations[i].competeTime += DIFS + stations[i].backoffTime;
 				}
 
 				generateBackoffTime(&stations[i]);
 			}
 			if (stations[i].remainingPackets > 0) {
-				printf("\n\nNovi backofftime %2f", stations[i].backoffTime);
+				printf("\n\nNovi backofftime %2f, preostali paketi: %d ", stations[i].backoffTime, stations[i].remainingPackets);
 				printf("\nNovi CW %d \n", stations[i].CW);
 			}
 			printf("\n---------------------------------------------------------\n");
 		
-			
-			
-
-			stations[i].iteratonCollision = 0;
-			
-			
+			stations[i].iteratonCollision = 0;	
 		}
 		for (int i = 0; i < 50; i++) {
 			if (arrayOfBackoffTime[i] != -1) {
@@ -214,20 +215,23 @@ int main() {
 				arrayOfBackoffTime[i] = -1;
 				
 			}
-
 		}
-		competitionTime = 0;
+		
 		qsort(stations, numberOfStations, sizeof(Station), compareBackoffTime);
 		printf("\n\nSortirani Backofftime: ");
 		for (int i = 0; i < numberOfStations; i++) {
-			printf("\n%s: %2f \n", stations[i].name, stations[i].backoffTime);
+			printf("\n%s: %2f, Preostali broj paketa paketi: %d \n", stations[i].name, stations[i].backoffTime, stations[i].remainingPackets);
 		}
-
 		//printf("\nTrenutni broj paketa je: %d ", numberOfPacketsOnNetwork);
+	}
+
+	for (int i = 0; i < numberOfStations; i++) {
+		competitionTime += stations[i].competeTime; //mislim da ovo nije dobro
 	}
 	//printf("\nUkupan broj paketa na mrezi: %d ",numberOfPacketsOnNetwork);
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollision);
+	printf("\nVrijeme trajanja nadmetanja: %2f (us) \n", competitionTime);
 	printf("\nVrijeme trajanja simulacije: %2f (us) \n", simulationTime);// zbrojena vremena uspjesno i neuspjesno poslanih paketa
 }
