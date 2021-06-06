@@ -5,18 +5,18 @@
 #include <iostream>
 
 // KONSTANTE
-const int slotTime = 9; 	// 20us(for 802.11b); 9us(for 802.11g)
+const int slotTime = 9; 	// 9us(for 802.11g)
 const int SIFS = 10; 	// us, 802.11g
 const int DIFS = 2 * slotTime + SIFS; // us 
-const int maxFrameSize = 1040; // bytes//1040
-const int dataRate = 54 * 1000000; 	// 11Mbps for 802.11b; 54Mbps for 802.11g
-const int ACK = 15 * 8;			//bit
-const int timeACK = (ACK/dataRate) * 1000000; // (us)
+const int frameSize = 1040 * 8; // bit
+const int dataRate = 6 * 1000000; 	// 6Mbps for 802.11g
+const int timeACK = 50; // (us)
 const int timeToSend = 1454; //us, 802.11g
+
 const int CWmax = 1023 * slotTime; 	// us
 const int CWmin = 15 * slotTime; 	// us
 const int retryLimit = 7;
-const int stationNumberOfPackets = 2;
+const int stationNumberOfPackets = 100000;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -26,12 +26,14 @@ int transmittedPackets = 0;
 int numberOfCollisions = 0;
 int competitionTime = 0;//trajanje nadmetanja
 int competitionCounter = 0;
-int simulationTime = DIFS;
+long long int simulationTime = DIFS;
+long long int transmittedDataSize = 0;
 
 // OSTALO
 int numberOfStations;	// broj stanica u mrezi (networkSize x networkSize)
 double collisionProbability;
 double packetSendProbability;
+double throughput; //propusnost
 
 
 typedef struct _station {
@@ -43,17 +45,20 @@ typedef struct _station {
 } Station;
 
 void generateBackoffTime(Station* station) {
+	int backoffTime = -1;
 
-	station->backoffTime = ((rand() % station->CW)) * slotTime; //provjerit je li se ovako racuna!!!!
-	printf("\n%s backofftime : %d\n ", station->name, station->backoffTime);
+	do {
+		backoffTime = ((rand() % station->CW)) * slotTime;
+	} while (backoffTime == 0);
+
+	station->backoffTime = backoffTime;
 }
 
 void createStations(Station* stations) {
-	//postavljanje pocetnih vrijednosti za svaku stanicu
 	for (int i = 0; i < numberOfStations; i++) {
 		sprintf_s(stations[i].name, "%s_%d", "STANICA", i);
-		stations[i].collisionCounter = 0; //brojac kolizija
-		stations[i].remainingPackets = stationNumberOfPackets; //broj paketa za stanicu
+		stations[i].collisionCounter = 0;
+		stations[i].remainingPackets = stationNumberOfPackets;
 		stations[i].CW = CWmin;
 		generateBackoffTime(&stations[i]);
 		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
@@ -65,9 +70,9 @@ void processPacket(Station* station, const char* packetStatus) {
 	station->remainingPackets--;
 	numberOfPacketsOnNetwork--;
 
-	printf("\nPAKET %s ", packetStatus);
+	/* printf("\nPAKET %s ", packetStatus);
 	printf("\nPreostali broj paketa: %d\n ", station->remainingPackets);
-	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork);
+	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
 }
 
 void decrementBackoffTimes(Station* stations) {
@@ -102,7 +107,6 @@ void printStationState(Station* station) {
 	printf("\n| %s |\n", station->name);
 	printf(" -----------");
 	printf("\nBackoff time: %d ", station->backoffTime);
-
 }
 
 void printBackofTime(Station* stations) {
@@ -110,7 +114,6 @@ void printBackofTime(Station* stations) {
 	for (int i = 0; i < numberOfStations; i++) {
 		printf("\n%s backofftime : %d\n ", stations[i].name, stations[i].backoffTime);
 	}
-
 }
 
 int main() {
@@ -129,7 +132,7 @@ int main() {
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
 
-		printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
+		// printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
 
 		decrementBackoffTimes(stations);
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
@@ -137,16 +140,17 @@ int main() {
 		for (int i = 0; i < numberOfStations; i++) {
 			
 			if (stations[i].backoffTime == 0 ) {
-				printStationState(&stations[i]);
+				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN");
 					simulationTime += (timeToSend + SIFS + timeACK);
+					transmittedDataSize += frameSize;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
 				}
 				else {
 					stations[i].collisionCounter++;
-					printf("Dogodila se kolizija\n");
+					// printf("Dogodila se kolizija\n");
 
 					if (stations[i].collisionCounter >= retryLimit) {
 						droppedPackets++;
@@ -156,9 +160,10 @@ int main() {
 						calculateColisionCW(&stations[i]);	
 					}
 				}
+
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
-					printBackofTime(stations);
+					// printBackofTime(stations);
 
 				}
 				else {
@@ -169,6 +174,7 @@ int main() {
 		if (zeroBackoffTimeCounter > 0) {
 			competitionCounter++;
 			simulationTime += DIFS;
+
 			if (zeroBackoffTimeCounter > 1) {
 				numberOfCollisions++;
 			}
@@ -178,17 +184,20 @@ int main() {
 	competitionTime = slotTime * slotTimeCounter;
 	simulationTime += (slotTime * slotTimeCounter);
 
-	collisionProbability = double(numberOfCollisions / competitionCounter);
+	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
+	throughput = (double)transmittedDataSize / simulationTime;
 
-	printf("\n\n\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
+	printf("\n\n********** REZULTATI SIMULACIJE ZA DCF 802.11g **********\n");
+	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
 	printf("\nBroj nadmetanja: %d ", competitionCounter);
 	printf("\nVrijeme nadmetanja: %d (us) ", competitionTime);
-	printf("\nVrijeme trajanja simulacije: %d (us) \n", simulationTime);
-	printf("\n\n");
+	printf("\nVrijeme trajanja simulacije: %I64d (us)", simulationTime);
+	printf("\n");
 	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
-	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
-	
+	printf("\n\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
+	printf("\nUkupna velicina poslanih podataka: %I64d (b) ", transmittedDataSize);
+	printf("\nPropusnost: %2f (b/us)\n ", throughput);
 }
