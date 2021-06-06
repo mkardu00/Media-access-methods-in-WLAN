@@ -193,11 +193,11 @@ int main() {
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
 	printf("\nBroj nadmetanja: %d ", competitionCounter);
-	printf("\nVrijeme nadmetanja: %d (us) ", competitionTime);
-	printf("\nVrijeme trajanja simulacije: %I64d (us)", simulationTime);
+	printf("\nVrijeme nadmetanja: %2f (s) ", (double)competitionTime / 1000000);
+	printf("\nVrijeme trajanja simulacije: %2f (s)", (double)simulationTime / 1000000);
 	printf("\n");
 	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
-	printf("\n\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
-	printf("\nUkupna velicina poslanih podataka: %I64d (b) ", transmittedDataSize);
-	printf("\nPropusnost: %2f (b/us)\n ", throughput);
+	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
+	printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+	printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
 }
