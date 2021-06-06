@@ -16,19 +16,23 @@ const int timeToSend = 1454; //us, 802.11g
 const int CWmax = 1023 * slotTime; 	// us
 const int CWmin = 15 * slotTime; 	// us
 const int retryLimit = 7;
-const int stationNumberOfPackets = 10;
+const int stationNumberOfPackets = 2;
 
 // AKUMULATORI
-int slotTimeCounter = 0;
+int slotTimeCounter = 0; //broj nadmetanja
 int numberOfPacketsOnNetwork = 0;
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
 int competitionTime = 0;//trajanje nadmetanja
+int competitionCounter = 0;
 int simulationTime = DIFS;
 
 // OSTALO
 int numberOfStations;	// broj stanica u mrezi (networkSize x networkSize)
+double collisionProbability;
+double packetSendProbability;
+
 
 typedef struct _station {
 	char name[20];
@@ -132,7 +136,6 @@ int main() {
 
 		for (int i = 0; i < numberOfStations; i++) {
 			
-
 			if (stations[i].backoffTime == 0 ) {
 				printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
@@ -164,6 +167,7 @@ int main() {
 			}	
 		}
 		if (zeroBackoffTimeCounter > 0) {
+			competitionCounter++;
 			simulationTime += DIFS;
 			if (zeroBackoffTimeCounter > 1) {
 				numberOfCollisions++;
@@ -174,9 +178,17 @@ int main() {
 	competitionTime = slotTime * slotTimeCounter;
 	simulationTime += (slotTime * slotTimeCounter);
 
+	collisionProbability = double(numberOfCollisions / competitionCounter);
+	packetSendProbability = 1 - collisionProbability;
+
 	printf("\n\n\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
+	printf("\nBroj nadmetanja: %d ", competitionCounter);
 	printf("\nVrijeme nadmetanja: %d (us) ", competitionTime);
 	printf("\nVrijeme trajanja simulacije: %d (us) \n", simulationTime);
+	printf("\n\n");
+	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
+	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
+	
 }
