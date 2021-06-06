@@ -8,13 +8,15 @@
 const int slotTime = 9; 	// 20us(for 802.11b); 9us(for 802.11g)
 const int SIFS = 10; 	// us, 802.11g
 const int DIFS = 2 * slotTime + SIFS; // us 
-const int maxFrameSize = 1500; // bytes//1040
-const int ACK = 15;			//bytes
+const int maxFrameSize = 1040; // bytes//1040
+const int dataRate = 54 * 1000000; 	// 11Mbps for 802.11b; 54Mbps for 802.11g
+const int ACK = 15 * 8;			//bit
+const int timeACK = (ACK/dataRate) * 1000000; // (us)
 const int timeToSend = 1454; //us, 802.11g
 const int CWmax = 1023 * slotTime; 	// us
 const int CWmin = 15 * slotTime; 	// us
 const int retryLimit = 7;
-const int stationNumberOfPackets = 2;
+const int stationNumberOfPackets = 10;
 
 // AKUMULATORI
 int slotTimeCounter = 0;
@@ -39,6 +41,7 @@ typedef struct _station {
 void generateBackoffTime(Station* station) {
 
 	station->backoffTime = ((rand() % station->CW)) * slotTime; //provjerit je li se ovako racuna!!!!
+	printf("\n%s backofftime : %d\n ", station->name, station->backoffTime);
 }
 
 void createStations(Station* stations) {
@@ -98,13 +101,21 @@ void printStationState(Station* station) {
 
 }
 
+void printBackofTime(Station* stations) {
+	printf("\nBACKOFF VREMENA:\n");
+	for (int i = 0; i < numberOfStations; i++) {
+		printf("\n%s backofftime : %d\n ", stations[i].name, stations[i].backoffTime);
+	}
+
+}
+
 int main() {
 	srand(time(0));
 
 	printf("\nUnesite broj stanica u mrezi (4, 9, 25, 49 ili 100):\n");
 	scanf_s("%d", &numberOfStations);
 
-	printf("\nUkupan broj paketa na mrezi: %d ", numberOfStations * stationNumberOfPackets);
+	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
 	
 	Station* stations = (Station*) malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
@@ -114,24 +125,24 @@ int main() {
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
 
-		printf("\n------------------------%d--------------------", slotTimeCounter);
+		printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
 
 		decrementBackoffTimes(stations);
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
-			printStationState(&stations[i]);
+			
 
 			if (stations[i].backoffTime == 0 ) {
+				printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN");
-					simulationTime += (timeToSend + SIFS + ACK);
+					simulationTime += (timeToSend + SIFS + timeACK);
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
 				}
 				else {
 					stations[i].collisionCounter++;
-					
 					printf("Dogodila se kolizija\n");
 
 					if (stations[i].collisionCounter >= retryLimit) {
@@ -144,6 +155,8 @@ int main() {
 				}
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
+					printBackofTime(stations);
+
 				}
 				else {
 					stations[i].backoffTime = -1;
@@ -152,7 +165,9 @@ int main() {
 		}
 		if (zeroBackoffTimeCounter > 0) {
 			simulationTime += DIFS;
-			numberOfCollisions++;
+			if (zeroBackoffTimeCounter > 1) {
+				numberOfCollisions++;
+			}
 		}
 	}
 
