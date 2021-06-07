@@ -16,7 +16,7 @@ const int timeToSend = 1454; //us, 802.11g
 const int CWmax = 1023 * slotTime; 	// us
 const int CWmin = 15 * slotTime; 	// us
 const int retryLimit = 7;
-const int stationNumberOfPackets = 100; // 100000;
+const int stationNumberOfPackets = 100;// 100000;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -35,6 +35,18 @@ double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
 
+// IDLE SENSE
+int numberOfConsecutiveIdleSlots = 0;
+int slotTimeCounterPrevious = 0;
+
+int maxtrans = 2 * numberOfStations;
+int sum = 0;
+int ntrans = 0;
+double nTarget = 3.91; // 802.11g
+double alpha = 1 / 1.0666;
+double beta = 0.75;
+double gamma = 4;
+double epsilon = 6.0;
 
 typedef struct _station {
 	char name[20];
@@ -42,6 +54,9 @@ typedef struct _station {
 	int CW; //us, postavljanje contention windowa na minimalnu vrijednost
 	int backoffTime; // backoff timer za svaku stanicu
 	int collisionCounter; //brojac uzastopnih kolizija
+	int n;// broj uzastopnih idle slotova između dva pokusaja prijenosa
+	int nAvg; 
+
 } Station;
 
 void generateBackoffTime(Station* station) {
@@ -66,9 +81,9 @@ void createStations(Station* stations) {
 }
 
 void processPacket(Station* station, const char* packetStatus) {
-	station->CW = CWmin;
 	station->remainingPackets--;
 	numberOfPacketsOnNetwork--;
+
 	/* printf("\nPAKET %s ", packetStatus);
 	printf("\nPreostali broj paketa: %d\n ", station->remainingPackets);
 	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
@@ -90,14 +105,29 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 	}
 }
 
-void calculateColisionCW(Station* station) {
-	int newCW = (station->CW * 2) + 1;
+void calculateCW(Station* station, int numberOfConsecutiveIdleSlots) {
+	station->n = numberOfConsecutiveIdleSlots;
+	sum += station->n;
+	ntrans += 1;
 
-	if (newCW >= CWmax) {
-		station->CW = CWmax;
-	}
-	else {
-		station->CW = newCW;
+	if (ntrans >= maxtrans) {
+		station->nAvg = sum / ntrans;
+		sum = 0;
+		ntrans = 0;
+
+		if (station->nAvg < nTarget) {
+			station->CW += epsilon;
+		}
+		else {
+			station->CW = station->CW * alpha;
+		}
+
+		if (abs(nTarget - station->nAvg) < beta) {
+			maxtrans = station->CW / gamma;
+		}
+		else {
+			maxtrans = 2 * numberOfStations; //JEDNAK BROJU STANICA
+		}
 	}
 }
 
@@ -118,16 +148,16 @@ void printBackofTime(Station* stations) {
 int main() {
 	srand(time(0));
 
-	printf("\nUnesite broj stanica u mrezi:\n");
+	printf("\nUnesite broj stanica u mrezi :\n");
 	scanf_s("%d", &numberOfStations);
 
 	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
-	
-	Station* stations = (Station*) malloc(sizeof(Station) * numberOfStations);
+
+	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
-	
-	while (numberOfPacketsOnNetwork > 0){
-		
+
+	while (numberOfPacketsOnNetwork > 0) {
+
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
 
@@ -137,8 +167,11 @@ int main() {
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
-			
-			if (stations[i].backoffTime == 0 ) {
+			numberOfConsecutiveIdleSlots = 0;
+
+			if (stations[i].backoffTime == 0) {
+				numberOfConsecutiveIdleSlots = slotTimeCounter - slotTimeCounterPrevious;
+				slotTimeCounterPrevious = slotTimeCounter;
 				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN");
@@ -156,9 +189,10 @@ int main() {
 						processPacket(&stations[i], "ODBACEN");
 					}
 					else {
-						calculateColisionCW(&stations[i]);	
+						//kolizija
 					}
 				}
+				calculateCW(&stations[i], numberOfConsecutiveIdleSlots);
 
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
@@ -168,7 +202,7 @@ int main() {
 				else {
 					stations[i].backoffTime = -1;
 				}
-			}	
+			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
 			competitionCounter++;
@@ -187,7 +221,7 @@ int main() {
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
 
-	printf("\n\n********** REZULTATI SIMULACIJE ZA DCF 802.11g **********\n");
+	printf("\n\n********** REZULTATI SIMULACIJE IDLE SENSE **********\n");
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
