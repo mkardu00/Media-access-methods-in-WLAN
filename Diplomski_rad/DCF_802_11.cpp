@@ -187,7 +187,8 @@ int main() {
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
 
-	printf("\n\n********** REZULTATI SIMULACIJE ZA DCF 802.11g **********\n");
+	printf("\n********** REZULTATI SIMULACIJE ZA DCF 802.11g **********\n");
+	printf("\n*********************************************************\n");
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
@@ -199,4 +200,5 @@ int main() {
 	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
 	printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
 	printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
+	printf("\n*********************************************************\n");
 }
