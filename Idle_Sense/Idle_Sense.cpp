@@ -13,10 +13,10 @@ const int dataRate = 6 * 1000000; 	// 6Mbps for 802.11g
 const int timeACK = 50; // (us)
 const int timeToSend = 1454; //us, 802.11g
 
-const int CWmax = 1023 * slotTime; 	// us
-const int CWmin = 15 * slotTime; 	// us
+const int CWmax = 1023;
+const int CWmin = 15;
 const int retryLimit = 7;
-const int stationNumberOfPackets = 100;// 100000;
+const int stationNumberOfPackets = 10;// 100000;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -60,13 +60,9 @@ typedef struct _station {
 } Station;
 
 void generateBackoffTime(Station* station) {
-	int backoffTime = -1;
 
-	do {
-		backoffTime = ((rand() % station->CW)) * slotTime;
-	} while (backoffTime == 0);
-
-	station->backoffTime = backoffTime;
+	station->backoffTime = ((rand() % station->CW)) * slotTime;
+	printf("\n CW : %d \n", station->CW);
 }
 
 void createStations(Station* stations) {
@@ -76,7 +72,7 @@ void createStations(Station* stations) {
 		stations[i].remainingPackets = stationNumberOfPackets;
 		stations[i].CW = CWmin;
 		generateBackoffTime(&stations[i]);
-		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
+		//numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 	}
 }
 
@@ -129,6 +125,7 @@ void calculateCW(Station* station, int numberOfConsecutiveIdleSlots) {
 			maxtrans = 2 * numberOfStations; //JEDNAK BROJU STANICA
 		}
 	}
+	
 }
 
 void printStationState(Station* station) {
@@ -151,10 +148,11 @@ int main() {
 	printf("\nUnesite broj stanica u mrezi :\n");
 	scanf_s("%d", &numberOfStations);
 
-	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
+	//printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
 
 	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
+	numberOfPacketsOnNetwork = numberOfStations * 2; //Broj paketa na mrezi
 
 	while (numberOfPacketsOnNetwork > 0) {
 
@@ -163,7 +161,7 @@ int main() {
 
 		// printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
 
-		decrementBackoffTimes(stations);
+		
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
@@ -212,6 +210,7 @@ int main() {
 				numberOfCollisions++;
 			}
 		}
+		decrementBackoffTimes(stations);
 	}
 
 	competitionTime = slotTime * slotTimeCounter;
