@@ -16,7 +16,7 @@ const int timeToSend = 1454; //us, 802.11g
 const int CWmax = 1023 * slotTime; 	// us
 const int CWmin = 15 * slotTime; 	// us
 const int retryLimit = 7;
-const int stationNumberOfPackets = 100; // 100000;
+const int stationNumberOfPackets = 2; // 100000;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -48,7 +48,7 @@ void generateBackoffTime(Station* station) {
 	int backoffTime = -1;
 
 	do {
-		backoffTime = ((rand() % station->CW)) * slotTime;
+		backoffTime = ((rand() % station->CW))*slotTime;
 	} while (backoffTime == 0);
 
 	station->backoffTime = backoffTime;
@@ -125,6 +125,8 @@ int main() {
 	
 	Station* stations = (Station*) malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
+	//numberOfPacketsOnNetwork = numberOfStations;
+	
 	
 	while (numberOfPacketsOnNetwork > 0){
 		
@@ -132,7 +134,7 @@ int main() {
 		int zeroBackoffTimeCounter = 0;
 
 		// printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
-
+		//provjerit ima li vec netko 0  i potrebno dozvolit da bc moze bit nula
 		decrementBackoffTimes(stations);
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
@@ -162,7 +164,7 @@ int main() {
 
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
-					// printBackofTime(stations);
+					printBackofTime(stations);
 
 				}
 				else {

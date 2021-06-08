@@ -14,14 +14,14 @@ const int timeACK = 50; // (us)
 const int timeToSend = 1454; //us, 802.11g
 
 const int CWmax = 1023 * slotTime; 	// us
-const int CWmin = 32 * slotTime; 	// us //to mj je W0
+const int CWmin = 16 * slotTime; 	// us //to mj je W0
 const int retryLimit = 7;
 const int stationNumberOfPackets = 100; // 100000;
 
 const int freezingLimit = 3; //k - granica zamrzavanja
 const int FCgr = 4;
-const int CWshifted = 48 * slotTime; 	// us //W1-velicina pomoknutog prozora
-const int CWshiftedMIN = 16 * slotTime; //Wmin - donja granica pomaknutig prozora
+const int CWshifted = 32 * slotTime; 	// us //W1-velicina pomoknutog prozora
+const int CWshiftedMIN = 8 * slotTime; //Wmin - donja granica pomaknutig prozora
 
 
 // AKUMULATORI
@@ -150,7 +150,7 @@ void incrementFreezingCounter(Station* stations, Station* station) {
 }
 
 void checkCongestionForWinningStation(Station* station){
-	if (station->freezingCounter > FCgr) {
+	if (station->freezingCounter >= FCgr) {
 		station->CW = CWshifted;
 		station->congestion = 1;
 	}
