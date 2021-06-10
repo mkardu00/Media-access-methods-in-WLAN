@@ -16,7 +16,7 @@ const int timeToSend = 1454; //us, 802.11g
 const int CWmax = 1023;
 const int CWmin = 15;
 const int retryLimit = 7;
-const int stationNumberOfPackets = 10; // 100000;
+const int stationNumberOfPackets = 100000;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -34,6 +34,7 @@ int numberOfStations;	// broj stanica u mrezi (networkSize x networkSize)
 double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
+int slotTimeCounterLimit;
 
 typedef struct _station {
 	char name[20];
@@ -44,9 +45,7 @@ typedef struct _station {
 } Station;
 
 void generateBackoffTime(Station* station) {
-
 	station->backoffTime = ((rand() % station->CW)) * slotTime;
-	printf("\n CW : %d \n", station->CW);
 }
 	
 void createStations(Station* stations) {
@@ -56,7 +55,7 @@ void createStations(Station* stations) {
 		stations[i].remainingPackets = stationNumberOfPackets;
 		stations[i].CW = CWmin;
 		generateBackoffTime(&stations[i]);
-		//numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
+		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 	}
 }
 
@@ -71,9 +70,8 @@ void processPacket(Station* station, const char* packetStatus) {
 
 void decrementBackoffTimes(Station* stations) {
 	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].backoffTime != -1) {
+		if (stations[i].backoffTime > 0) {
 			stations[i].backoffTime -= slotTime;
-			//stations[i].backoffTime -= 1;
 		}
 	}
 }
@@ -124,22 +122,23 @@ int main() {
 	printf("\nUnesite broj stanica u mrezi:\n");
 	scanf_s("%d", &numberOfStations);
 
-	//printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
-	
+	printf("\nUnesite timeSlotCounter limit:\n");
+	scanf_s("%d", &slotTimeCounterLimit);
+
 	Station* stations = (Station*) malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
-	numberOfPacketsOnNetwork = numberOfStations*2; //Broj paketa na mrezi
+	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfPacketsOnNetwork);
 	
-	
-	while (numberOfPacketsOnNetwork > 0){
+	while (slotTimeCounter < slotTimeCounterLimit){
 		//printf("while");
-		
+
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
 
 		// printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
 		//provjerit ima li vec netko 0  i potrebno dozvolit da bc moze bit nula
 		
+		decrementBackoffTimes(stations);
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
@@ -184,7 +183,6 @@ int main() {
 				numberOfCollisions++;
 			}
 		}
-		decrementBackoffTimes(stations);
 	}
 
 	competitionTime = slotTime * slotTimeCounter;
@@ -193,6 +191,7 @@ int main() {
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
+	printf("\nTime slot counter : %d \n", slotTimeCounter);
 
 	printf("\n********** REZULTATI SIMULACIJE ZA DCF 802.11g **********\n");
 	printf("\n*********************************************************\n");
