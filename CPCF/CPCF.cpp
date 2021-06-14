@@ -62,7 +62,7 @@ void createStations(Station* stations) {
 		stations[i].CW = CWmin;
 		generateBackoffTime(&stations[i]);
 		stations[i].freezingCounter = 0;
-		//numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
+		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 	}
 }
 
@@ -73,14 +73,6 @@ void processPacket(Station* station, const char* packetStatus) {
 	/* printf("\nPAKET %s ", packetStatus);
 	printf("\nPreostali broj paketa: %d\n ", station->remainingPackets);
 	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
-}
-
-void decrementBackoffTimes(Station* stations) {
-	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].backoffTime > 0) {
-			stations[i].backoffTime -= slotTime;
-		}
-	}
 }
 
 void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
@@ -116,17 +108,6 @@ void printBackofTime(Station* stations) {
 	}
 }
 
-void incrementFreezingCounter(Station* stations, Station* station) {
-	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].name != station->name) {
-			stations[i].freezingCounter++;
-			if (stations[i].freezingCounter > freezingLimit){
-				generateBackoffTime(&stations[i]);
-            }
-		}
-	}
-}
-
 int main() {
 	srand(time(0));
 
@@ -145,14 +126,13 @@ int main() {
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
 		
-		decrementBackoffTimes(stations);
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
 
 			if (stations[i].backoffTime == 0) {
 				// printStationState(&stations[i]);
-				if (zeroBackoffTimeCounter == 1) {
+				if (zeroBackoffTimeCounter == 1){
 					processPacket(&stations[i], "POSLAN");
 					simulationTime += (timeToSend + SIFS + timeACK);
 					transmittedDataSize += frameSize;
@@ -171,17 +151,24 @@ int main() {
 						calculateColisionCW(&stations[i]);
 					}
 				}
-
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
 					// printBackofTime(stations);
-
 				}
 				else {
 					stations[i].backoffTime = -1;
+				}	
+			}
+			else {
+				if (zeroBackoffTimeCounter >= 1) {
+					stations[i].freezingCounter++;
+					if (stations[i].freezingCounter > freezingLimit) {
+						generateBackoffTime(&stations[i]);
+					}
 				}
-				//implementacija dijela za cpcf
-				incrementFreezingCounter(stations, &stations[i]);
+				else {
+					stations[i].backoffTime -= slotTime;
+				}
 			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
