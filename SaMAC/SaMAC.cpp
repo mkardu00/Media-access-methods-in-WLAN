@@ -5,23 +5,23 @@
 #include <iostream>
 
 // KONSTANTE
-const int slotTime = 9; 	// 9us(for 802.11g)
-const int SIFS = 10; 	// us, 802.11g
+const int slotTime = 9; //us
+const int SIFS = 10; // us
 const int DIFS = 2 * slotTime + SIFS; // us 
 const int frameSize = 1040 * 8; // bit
-const int dataRate = 6 * 1000000; 	// 6Mbps for 802.11g
+const int dataRate = 6 * 1000000; // 6Mbps 
 const int timeACK = 50; // (us)
-const int timeToSend = 1454; //us, 802.11g
+const int timeToSend = 1454; //us
 
 const int CWmax = 1023;
-const int CWmin = 16;//to mi je W0
+const int CWmin = 15;//to mi je W0
 const int retryLimit = 7;
-const int stationNumberOfPackets = 10; // 100000;
+const int stationNumberOfPackets = 100000; // 100000;
 
 const int freezingLimit = 3; //k - granica zamrzavanja
-const int FCgr = 4;
-const int CWshifted = 32 * slotTime; 	// us //W1-velicina pomoknutog prozora
-const int CWshiftedMIN = 8 * slotTime; //Wmin - donja granica pomaknutig prozora
+const int FCgr = 3;
+const int CWshifted = 31; 	// us //W1-velicina pomoknutog prozora
+const int CWshiftedMIN = 15; //Wmin - donja granica pomaknutog prozora
 
 
 // AKUMULATORI
@@ -40,6 +40,7 @@ int numberOfStations;	// broj stanica u mrezi (networkSize x networkSize)
 double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
+int slotTimeCounterLimit;
 int numberOfActiveStations; // broj aktivnih stanica, potrebo da bi se detktirala zagusenost mreze
 
 
@@ -54,13 +55,14 @@ typedef struct _station {
 } Station;
 
 void generateBackoffTime(Station* station) {
-	station->backoffTime = ((rand() % station->CW)) * slotTime;
-	station->freezingCounter = 0;
-	if (station->congestion == 1) {
-		station->backoffTime += CWshiftedMIN;
+	if (station->congestion == 0) {
+		station->backoffTime = ((rand() % station->CW)) * slotTime;
+	}
+	else {
+		station->backoffTime = (((rand() % station->CW) + CWshiftedMIN) * slotTime);
+		//printf("\nBackof: %d\n", station->backoffTime);
 	}
 	station->congestion = 0;
-
 }
 
 void createStations(Station* stations) {
@@ -72,7 +74,7 @@ void createStations(Station* stations) {
 		generateBackoffTime(&stations[i]);
 		stations[i].freezingCounter = 0;
 		stations[i].congestion = 0;
-		//numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
+		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 		
 	}
 }
@@ -106,7 +108,7 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 }
 
 void calculateColisionCW(Station* station) {
-	int newCW = (station->CW * 2);
+	int newCW = (station->CW * 2) + 1;
 
 	if (newCW >= CWmax) {
 		station->CW = CWmax;
@@ -130,20 +132,6 @@ void printBackofTime(Station* stations) {
 	}
 }
 
-void incrementFreezingCounter(Station* stations, Station* station) {
-	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].name != station->name) {
-			stations[i].freezingCounter++;
-			
-			if (stations[i].freezingCounter > freezingLimit) {
-				station[i].CW = CWshifted;
-				station[i].congestion = 1;
-				generateBackoffTime(&stations[i]);
-			}
-		}
-	}
-}
-
 void checkCongestionForWinningStation(Station* station){
 	if (station->freezingCounter >= FCgr) {
 		station->CW = CWshifted;
@@ -153,7 +141,6 @@ void checkCongestionForWinningStation(Station* station){
 		station->CW = CWmin;
 		station->congestion = 0;
 	}
-
 }
 
 int main() {
@@ -161,28 +148,24 @@ int main() {
 
 	printf("\nUnesite broj stanica u mrezi:\n");
 	scanf_s("%d", &numberOfStations);
-	numberOfActiveStations = numberOfStations;
 
-	//printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
+	printf("\nUnesite timeSlotCounter limit:\n");
+	scanf_s("%d", &slotTimeCounterLimit);
 
 	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
-	numberOfPacketsOnNetwork = numberOfStations * 2; //Broj paketa na mrezi
+	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfPacketsOnNetwork);
 
-	while (numberOfPacketsOnNetwork > 0) {
-
+	while (slotTimeCounter < slotTimeCounterLimit) {
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
-
-		// printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
-
-		
+		//decrementBackoffTimes(stations);
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
 
 			if (stations[i].backoffTime == 0) {
-				// printStationState(&stations[i]);
+			
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN");
 					checkCongestionForWinningStation(&stations[i]);
@@ -206,14 +189,23 @@ int main() {
 
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
-					// printBackofTime(stations);
-
 				}
 				else {
 					stations[i].backoffTime = -1;
 				}
-				//implementacija dijela za cpcf
-				incrementFreezingCounter(stations, &stations[i]);
+			}
+			else {
+				if (zeroBackoffTimeCounter >= 1) {//ako medij nije slobodan jer netko šalje ili je kolizija
+					stations[i].freezingCounter++;
+					if (stations[i].freezingCounter > freezingLimit) {
+						stations[i].CW = CWshifted;
+						stations[i].congestion = 1;
+						generateBackoffTime(&stations[i]);
+					}
+				}
+				else {
+					stations[i].backoffTime -= slotTime;
+				}
 			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
@@ -224,8 +216,6 @@ int main() {
 				numberOfCollisions++;
 			}
 		}
-		decrementBackoffTimes(stations);
-
 	}
 
 	competitionTime = slotTime * slotTimeCounter;
