@@ -68,14 +68,6 @@ void processPacket(Station* station, const char* packetStatus) {
 	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
 }
 
-void decrementBackoffTimes(Station* stations) {
-	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].backoffTime > 0) {
-			stations[i].backoffTime -= slotTime;
-		}
-	}
-}
-
 void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 	for (int i = 0; i < numberOfStations; i++) {
 		if (stations[i].backoffTime == 0) {
@@ -133,12 +125,13 @@ int main() {
 
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
-		decrementBackoffTimes(stations);
+
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
 
 			if (stations[i].backoffTime == 0) {
+				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN");
 					simulationTime += (timeToSend + SIFS + timeACK);
@@ -158,12 +151,20 @@ int main() {
 						calculateColisionCW(&stations[i]);
 					}
 				}
-
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
+					// printBackofTime(stations);
 				}
 				else {
 					stations[i].backoffTime = -1;
+				}
+			}
+			else {
+				if (zeroBackoffTimeCounter == 0) {//medij je slobodan
+					stations[i].backoffTime -= slotTime;
+				}
+				else {
+					//medij nije slobodan
 				}
 			}
 		}
@@ -183,9 +184,8 @@ int main() {
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
-	
-	printf("\n********** REZULTATI SIMULACIJE ZA DCF 802.11g **********\n");
-	printf("\n*********************************************************\n");
+
+	printf("\n********** REZULTATI SIMULACIJE ZA DCF 802.11 **********\n");
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
