@@ -134,7 +134,7 @@ int main() {
 				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1){
 					processPacket(&stations[i], "POSLAN");
-					simulationTime += (timeToSend + SIFS + timeACK);
+					simulationTime += timeACK;
 					transmittedDataSize += frameSize;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
@@ -173,7 +173,7 @@ int main() {
 		}
 		if (zeroBackoffTimeCounter > 0) {
 			competitionCounter++;
-			simulationTime += DIFS;
+			simulationTime += DIFS + timeToSend + SIFS;
 
 			if (zeroBackoffTimeCounter > 1) {
 				numberOfCollisions++;
@@ -182,7 +182,7 @@ int main() {
 	}
 
 	competitionTime = slotTime * slotTimeCounter;
-	simulationTime += (slotTime * slotTimeCounter);
+	simulationTime += competitionTime;
 
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
