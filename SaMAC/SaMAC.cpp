@@ -19,7 +19,7 @@ const int retryLimit = 7;
 const int stationNumberOfPackets = 100000; // 100000;
 
 const int freezingLimit = 4; //k - granica zamrzavanja
-const int CWshifted = 31; 	// us //W1-velicina pomoknutog prozora, Wmax
+const int CWshifted = 47; 	// us //W1-velicina pomoknutog prozora, Wmax (31 ili 47), 
 const int CWshiftedMIN = 15; //Wmin - donja granica pomaknutog prozora
 
 
@@ -52,9 +52,13 @@ typedef struct _station {
 	int freezingCounter; //FC - brojac zamrzavanja, koliko je puta stanica izgubila u natjecanju za medij od posljednje izabranog bc
 } Station;
 
+void generateFirstBackoffTime(Station* station) {
+	station->backoffTime = ((rand() % station->CW)) * slotTime;
+}
+
 void generateBackoffTime(Station* station) {
 	
-		station->backoffTime = (((rand() % station->CW) + CWshiftedMIN) * slotTime);
+	station->backoffTime = (((rand() % (CWshifted - CWshiftedMIN)) + CWshiftedMIN) * slotTime);
 		//printf("\nBackof: %d\n", station->backoffTime);
 		station->freezingCounter = 0;
 }
@@ -65,7 +69,7 @@ void createStations(Station* stations) {
 		stations[i].collisionCounter = 0;
 		stations[i].remainingPackets = stationNumberOfPackets;
 		stations[i].CW = CWmin;
-		generateBackoffTime(&stations[i]);
+		generateFirstBackoffTime(&stations[i]);
 		stations[i].freezingCounter = 0;
 		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 	}
@@ -88,17 +92,6 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 		if (stations[i].backoffTime == 0) {
 			(*zeroBackoffTimeCounter)++;
 		}
-	}
-}
-
-void calculateColisionCW(Station* station) {
-	int newCW = (station->CW * 2) + 1;
-
-	if (newCW >= CWmax) {
-		station->CW = CWmax;
-	}
-	else {
-		station->CW = newCW;
 	}
 }
 
@@ -145,7 +138,7 @@ int main() {
 					transmittedDataSize += frameSize;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
-					stations[i].CW = CWshifted - CWshiftedMIN;
+					//stations[i].CW = CWshifted - CWshiftedMIN;
 				}
 				else {
 					stations[i].collisionCounter++;
@@ -156,7 +149,8 @@ int main() {
 						processPacket(&stations[i], "ODBACEN");
 					}
 					else {
-						calculateColisionCW(&stations[i]);
+						//calculateColisionCW(&stations[i]);
+						//kolizija
 					}
 				}
 
@@ -171,7 +165,7 @@ int main() {
 				if (zeroBackoffTimeCounter >= 1) {//ako medij nije slobodan jer netko šalje ili je kolizija
 					stations[i].freezingCounter++;
 					if (stations[i].freezingCounter > freezingLimit) {
-						stations[i].CW = CWshifted - CWshiftedMIN;
+						//stations[i].CW = CWshifted - CWshiftedMIN;
 						//stations[i].congestion = 1;
 						generateBackoffTime(&stations[i]);
 					}
