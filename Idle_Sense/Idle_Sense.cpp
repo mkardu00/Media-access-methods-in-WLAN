@@ -5,18 +5,18 @@
 #include <iostream>
 
 // KONSTANTE
-const int slotTime = 9; 	// 9us(for 802.11g)
-const int SIFS = 10; 	// us, 802.11g
+const int slotTime = 9; 	// 9us
+const int SIFS = 10; 	// us
 const int DIFS = 2 * slotTime + SIFS; // us 
 const int frameSize = 1040 * 8; // bit
-const int dataRate = 6 * 1000000; 	// 6Mbps for 802.11g
+const int dataRate = 6 * 1000000; 	// 6Mbps
 const int timeACK = 50; // (us)
-const int timeToSend = 1454; //us, 802.11g
+const int timeToSend = 1454; //us, 
 
 const int CWmax = 1023;
 const int CWmin = 15;
 const int retryLimit = 7;
-const int stationNumberOfPackets = 10;// 100000;
+const int stationNumberOfPackets = 100000;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -30,39 +30,35 @@ long long int simulationTime = DIFS;
 long long int transmittedDataSize = 0;
 
 // OSTALO
-int numberOfStations;	// broj stanica u mrezi (networkSize x networkSize)
+int numberOfStations;
 double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
+int slotTimeCounterLimit;
 
 // IDLE SENSE
-int numberOfConsecutiveIdleSlots = 0;
-int slotTimeCounterPrevious = 0;
-
-int maxtrans = 2 * numberOfStations;
-int sum = 0;
-int ntrans = 0;
-double nTarget = 3.91; // 802.11g
+double targetNumberOfConsecutiveIdleSlots = 3.91; // 802.11g
 double alpha = 1 / 1.0666;
 double beta = 0.75;
-double gamma = 4;
-double epsilon = 6.0;
+int gamma = 4;
+int epsilon = 6;
 
 typedef struct _station {
 	char name[20];
-	int remainingPackets;// broj paketa za svaku stanicu
-	int CW; //us, postavljanje contention windowa na minimalnu vrijednost
-	int backoffTime; // backoff timer za svaku stanicu
-	int collisionCounter; //brojac uzastopnih kolizija
-	int n;// broj uzastopnih idle slotova između dva pokusaja prijenosa
-	int nAvg; 
-
+	int remainingPackets;
+	int CW;
+	int backoffTime;
+	int collisionCounter;
+	int numberOfConsecutiveIdleSlots;// n -  broj uzastopnih idle slotova između dva pokusaja prijenosa
+	double avgNumberOfConsecutiveIdleSlots;
+	int sumOfConsecutiveIdleSlots;
+	int numberOfTransmissions;
+	int maxTransmissions;
+	int slotTimeCounterPrevious;
 } Station;
 
 void generateBackoffTime(Station* station) {
-
 	station->backoffTime = ((rand() % station->CW)) * slotTime;
-	printf("\n CW : %d \n", station->CW);
 }
 
 void createStations(Station* stations) {
@@ -71,26 +67,23 @@ void createStations(Station* stations) {
 		stations[i].collisionCounter = 0;
 		stations[i].remainingPackets = stationNumberOfPackets;
 		stations[i].CW = CWmin;
+		stations[i].sumOfConsecutiveIdleSlots = 0;
+		stations[i].numberOfTransmissions = 0;
+		stations[i].maxTransmissions = 5;
+		stations[i].numberOfConsecutiveIdleSlots = 0;
+		stations[i].slotTimeCounterPrevious = 0;
 		generateBackoffTime(&stations[i]);
-		//numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
+		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
+		
 	}
 }
 
 void processPacket(Station* station, const char* packetStatus) {
 	station->remainingPackets--;
 	numberOfPacketsOnNetwork--;
-
 	/* printf("\nPAKET %s ", packetStatus);
 	printf("\nPreostali broj paketa: %d\n ", station->remainingPackets);
 	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
-}
-
-void decrementBackoffTimes(Station* stations) {
-	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].backoffTime != -1) {
-			stations[i].backoffTime -= slotTime;
-		}
-	}
 }
 
 void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
@@ -101,31 +94,29 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 	}
 }
 
-void calculateCW(Station* station, int numberOfConsecutiveIdleSlots) {
-	station->n = numberOfConsecutiveIdleSlots;
-	sum += station->n;
-	ntrans += 1;
+void calculateCW(Station* station) {
+	station->sumOfConsecutiveIdleSlots += station->numberOfConsecutiveIdleSlots;
+	station->numberOfTransmissions += 1;
+	//printf("sum %d ", sum);
+	if (station->numberOfTransmissions >= station->maxTransmissions) {
+		station->avgNumberOfConsecutiveIdleSlots = (double)station->sumOfConsecutiveIdleSlots / station->numberOfTransmissions;
+		station->sumOfConsecutiveIdleSlots = 0;
+		station->numberOfTransmissions = 0;
 
-	if (ntrans >= maxtrans) {
-		station->nAvg = sum / ntrans;
-		sum = 0;
-		ntrans = 0;
-
-		if (station->nAvg < nTarget) {
+		if (station->avgNumberOfConsecutiveIdleSlots < targetNumberOfConsecutiveIdleSlots) {
 			station->CW += epsilon;
 		}
 		else {
-			station->CW = station->CW * alpha;
+			station->CW *= alpha;
 		}
 
-		if (abs(nTarget - station->nAvg) < beta) {
-			maxtrans = station->CW / gamma;
+		if (abs(targetNumberOfConsecutiveIdleSlots - station->avgNumberOfConsecutiveIdleSlots) < beta) {
+			station->maxTransmissions = station->CW / gamma;
 		}
 		else {
-			maxtrans = 2 * numberOfStations; //JEDNAK BROJU STANICA
+			station->maxTransmissions = 5;
 		}
 	}
-	
 }
 
 void printStationState(Station* station) {
@@ -142,38 +133,41 @@ void printBackofTime(Station* stations) {
 	}
 }
 
+void remainingNumberOfPackets(Station* stations) {
+	printf("\nPreostali broj paketa po stanicama:\n");
+	for (int i = 0; i < numberOfStations; i++) {
+		printf("\n%s Preostalo %d paketa\n ", stations[i].name, stations[i].remainingPackets);
+	}
+}
+
 int main() {
 	srand(time(0));
 
-	printf("\nUnesite broj stanica u mrezi :\n");
+	printf("\nUnesite broj stanica u mrezi:\n");
 	scanf_s("%d", &numberOfStations);
 
-	//printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfStations * stationNumberOfPackets);
+	printf("\nUnesite timeSlotCounter limit:\n");
+	scanf_s("%d", &slotTimeCounterLimit);
 
 	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
-	numberOfPacketsOnNetwork = numberOfStations * 2; //Broj paketa na mrezi
+	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfPacketsOnNetwork);
 
-	while (numberOfPacketsOnNetwork > 0) {
+	while (slotTimeCounter < slotTimeCounterLimit) {
 
 		slotTimeCounter++;
 		int zeroBackoffTimeCounter = 0;
 
-		// printf("\n---------------------TIMESLOT %d--------------------", slotTimeCounter);
-
-		
 		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
 		for (int i = 0; i < numberOfStations; i++) {
-			numberOfConsecutiveIdleSlots = 0;
-
+		
 			if (stations[i].backoffTime == 0) {
-				numberOfConsecutiveIdleSlots = slotTimeCounter - slotTimeCounterPrevious;
-				slotTimeCounterPrevious = slotTimeCounter;
+			
 				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN");
-					simulationTime += (timeToSend + SIFS + timeACK);
+					simulationTime += timeACK;
 					transmittedDataSize += frameSize;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
@@ -186,41 +180,43 @@ int main() {
 						droppedPackets++;
 						processPacket(&stations[i], "ODBACEN");
 					}
-					else {
-						//kolizija
-					}
 				}
-				calculateCW(&stations[i], numberOfConsecutiveIdleSlots);
+				stations[i].numberOfConsecutiveIdleSlots = slotTimeCounter - stations[i].slotTimeCounterPrevious; //ovo je dobro, provjerila sam
+				stations[i].slotTimeCounterPrevious = slotTimeCounter;
+				calculateCW(&stations[i]);
 
 				if (stations[i].remainingPackets > 0) {
 					generateBackoffTime(&stations[i]);
 					// printBackofTime(stations);
-
 				}
 				else {
 					stations[i].backoffTime = -1;
 				}
 			}
+			else {
+				if (zeroBackoffTimeCounter == 0) {//medij je slobodan
+					stations[i].backoffTime -= slotTime;
+				}
+			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
 			competitionCounter++;
-			simulationTime += DIFS;
+			simulationTime += timeToSend + SIFS + DIFS;
 
 			if (zeroBackoffTimeCounter > 1) {
 				numberOfCollisions++;
 			}
 		}
-		decrementBackoffTimes(stations);
 	}
 
 	competitionTime = slotTime * slotTimeCounter;
-	simulationTime += (slotTime * slotTimeCounter);
+	simulationTime += competitionTime;
 
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
 
-	printf("\n********** REZULTATI SIMULACIJE IDLE SENSE **********\n");
+	printf("\n********** REZULTATI SIMULACIJE ZA IDLE SENSE **********\n");
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 	printf("\nBroj kolizija: %d ", numberOfCollisions);
