@@ -9,7 +9,7 @@ const int slotTime = 9; 	// 9us
 const int SIFS = 10; 	// us
 const int DIFS = 2 * slotTime + SIFS; // us 
 const int frameSize = 1040 * 8; // bit
-const int dataRate = 6 * 1000000; 	// 6Mbps
+//const int dataRate = 6 * 1000000; 	// 6Mbps
 const int timeACK = 50; // (us)
 const int timeToSend = 1454; //us, 
 
