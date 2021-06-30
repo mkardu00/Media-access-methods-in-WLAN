@@ -5,25 +5,24 @@
 #include <iostream>
 
 // KONSTANTE
-const int slotTime = 9; // us
+const int SLOT_TIME = 9; // us
 const int SIFS = 10; // us
-const int DIFS = 2 * slotTime + SIFS; // us 
-const int frameSize = 1040 * 8; // bit
-const int dataRate = 6 * 1000000; 	// 6Mbps
-const int timeACK = 50; // (us)
-const int timeToSend = 1454; //us,
+const int DIFS = 2 * SLOT_TIME + SIFS; // us 
+const int FRAME_SIZE = 1040 * 8; // bit
+//const int dataRate = 6 * 1000000; 	// 6Mbps
+const int TIME_ACK = 50; // (us)
+const int TIME_TO_SEND = 1454; //us,
 
-const int CWmax = 1023;
-const int CWmin = 15;
-const int retryLimit = 7;
-const int stationNumberOfPackets = 100000; // 100000;
+const int CW_MAX = 1023;
+const int CW_MIN = 15; //MIJENJA SE ZA TESTIRANJE
+const int RETRY_LIMIT = 7;
+const int STATION_NUMBER_OF_PACKETS = 100000; // 100000;
 
-const int freezingLimit = 1; //k - granica zamrzavanja- za manji broj stanica neka je npr 50, a za veci broj neka je 0 ili 1
-
+const int freezingLimit = 6; //MIJENJA SE ZA TESTIRANJE
+//k - granica zamrzavanja- za manji broj stanica neka je npr 50, a za veci broj neka je 0 ili 1 - MIJENJA SE ZA TESTIRANJE
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
-int numberOfPacketsOnNetwork = 0;
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
@@ -37,8 +36,7 @@ int numberOfStations;
 double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
-int slotTimeCounterLimit;
-
+int slotTimeCounterLimit = 99999;
 
 typedef struct _station {
 	char name[20];
@@ -50,7 +48,7 @@ typedef struct _station {
 } Station;
 
 void generateBackoffTime(Station* station) {
-	station->backoffTime = ((rand() % station->CW)) * slotTime;
+	station->backoffTime = ((rand() % station->CW)) * SLOT_TIME;
 	station->freezingCounter = 0;
 }
 
@@ -58,18 +56,16 @@ void createStations(Station* stations) {
 	for (int i = 0; i < numberOfStations; i++) {
 		sprintf_s(stations[i].name, "%s_%d", "STANICA", i);
 		stations[i].collisionCounter = 0;
-		stations[i].remainingPackets = stationNumberOfPackets;
-		stations[i].CW = CWmin;
+		stations[i].remainingPackets = STATION_NUMBER_OF_PACKETS;
+		stations[i].CW = CW_MIN;
 		generateBackoffTime(&stations[i]);
 		stations[i].freezingCounter = 0;
-		numberOfPacketsOnNetwork = numberOfPacketsOnNetwork + stations[i].remainingPackets;
 	}
 }
 
 void processPacket(Station* station, const char* packetStatus) {
-	station->CW = CWmin;
+	station->CW = CW_MIN;
 	station->remainingPackets--;
-	numberOfPacketsOnNetwork--;
 	/* printf("\nPAKET %s ", packetStatus);
 	printf("\nPreostali broj paketa: %d\n ", station->remainingPackets);
 	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
@@ -86,8 +82,8 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 void calculateColisionCW(Station* station) {
 	int newCW = (station->CW * 2) + 1;
 
-	if (newCW >= CWmax) {
-		station->CW = CWmax;
+	if (newCW >= CW_MAX) {
+		station->CW = CW_MAX;
 	}
 	else {
 		station->CW = newCW;
@@ -114,12 +110,11 @@ int main() {
 	printf("\nUnesite broj stanica u mrezi:\n");
 	scanf_s("%d", &numberOfStations);
 
-	printf("\nUnesite timeSlotCounter limit:\n");
-	scanf_s("%d", &slotTimeCounterLimit);
+	//printf("\nUnesite timeSlotCounter limit:\n");
+	//scanf_s("%d", &slotTimeCounterLimit);
 
 	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
-	printf("\nUkupan broj paketa na mrezi: %d\n ", numberOfPacketsOnNetwork);
 
 	while (slotTimeCounter < slotTimeCounterLimit) {
 
@@ -134,8 +129,8 @@ int main() {
 				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1){
 					processPacket(&stations[i], "POSLAN");
-					simulationTime += timeACK;
-					transmittedDataSize += frameSize;
+					simulationTime += TIME_ACK;
+					transmittedDataSize += FRAME_SIZE;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
 				}
@@ -143,7 +138,7 @@ int main() {
 					stations[i].collisionCounter++;
 					// printf("Dogodila se kolizija\n");
 
-					if (stations[i].collisionCounter >= retryLimit) {
+					if (stations[i].collisionCounter >= RETRY_LIMIT) {
 						droppedPackets++;
 						processPacket(&stations[i], "ODBACEN");
 					}
@@ -167,13 +162,13 @@ int main() {
 					}
 				}
 				else {
-					stations[i].backoffTime -= slotTime;
+					stations[i].backoffTime -= SLOT_TIME;
 				}
 			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
 			competitionCounter++;
-			simulationTime += DIFS + timeToSend + SIFS;
+			simulationTime += DIFS + TIME_TO_SEND + SIFS;
 
 			if (zeroBackoffTimeCounter > 1) {
 				numberOfCollisions++;
@@ -181,7 +176,7 @@ int main() {
 		}	
 	}
 
-	competitionTime = slotTime * slotTimeCounter;
+	competitionTime = SLOT_TIME * slotTimeCounter;
 	simulationTime += competitionTime;
 
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
