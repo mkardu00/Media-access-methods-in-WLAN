@@ -1,1 +1,17 @@
 *vcxproj*
+.vs/
+CPCF/Debug/
+CPCF/x64/
+Debug/
+Diplomski_rad.sln
+Diplomski_rad/Debug/
+Diplomski_rad/x64/
+Idle_Sense/Debug/
+Idle_Sense/test.cpp
+Idle_Sense/x64/
+SCW/Debug/
+SCW/x64/
+SaMAC/Debug/
+SaMAC/x64/
+x64/
+
