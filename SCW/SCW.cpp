@@ -5,36 +5,35 @@
 #include <iostream>
 
 // KONSTANTE
-const int slotTime = 9; 	// 9us
+const int SLOT_TIME = 9; 	// 9us
 const int SIFS = 10; 	// us
-const int DIFS = 2 * slotTime + SIFS; // us 
-const int frameSize = 1040 * 8; // bit
+const int DIFS = 2 * SLOT_TIME + SIFS; // us 
+const int FRAME_SIZE = 1040 * 8; // bit
 const int dataRate = 6 * 1000000; 	// 6Mbps
-const int timeACK = 50; // (us)
-const int timeToSend = 1454; //us, 
+const int TIME_ACK = 50; // (us)
+const int TIME_TO_SEND = 1454; //us, 
 
 //const int CWmax = 1023;
 //const int CWmin = 15;
-const int retryLimit = 7;
-const int stationNumberOfPackets = 100000;
-int HIGH_PRIORITY_PACKETS = 50000;
-int LOW_PRIORITY_PACKETS = 50000;
-int CW_MIN_HIGH_PRIORITY = 0;
-int CW_MAX_HIGH_PRIORITY = 256;
-int CW_MIN_LOW_PRIORITY = 128;
-int CW_MAX_LOW_PRIORITY = 1024;
-int HIGH_PRIORITY = 1;
-int LOW_PRIORITY = 2;
-int SF_HIGH_PRIORITY = 16;
-int SF_LOW_PRIORITY = 128;
-int SCW_SIZE_HIGH_PRIORITY = 32;
-int SCW_SIZE_LOW_PRIORITY = 256;
+const int RETRY_LIMIT = 7;
+const int HIGH_PRIORITY_PACKETS = 100000;
+const int LOW_PRIORITY_PACKETS = 100000;
+const int CW_MIN_HIGH_PRIORITY = 0;
+const int CW_MAX_HIGH_PRIORITY = 256;
+const int CW_MIN_LOW_PRIORITY = 128;
+const int CW_MAX_LOW_PRIORITY = 1024;
+const int HIGH_PRIORITY = 1;
+const int LOW_PRIORITY = 2;
+const int SF_HIGH_PRIORITY = 16;
+const int SF_LOW_PRIORITY = 128;
+const int SCW_SIZE_HIGH_PRIORITY = 32;
+const int SCW_SIZE_LOW_PRIORITY = 256;
 
-int ALPHA_HIGH_PRIORITY = 5;
-int ALPHA_LOW_PRIORITY = 99999;//ne postoji oganicenje
+const int ALPHA_HIGH_PRIORITY = 5;
+const int ALPHA_LOW_PRIORITY = 99999;//ne postoji oganicenje
 
-double NETWORK_LOAD_TRESHOLD = 0.7;
-double NETWORK_LOAD_SATURATION = 0.9;
+const double NETWORK_LOAD_TRESHOLD = 0.7;
+const double NETWORK_LOAD_SATURATION = 0.9;
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -53,7 +52,7 @@ int numberOfStations;
 double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
-int slotTimeCounterLimit;
+int slotTimeCounterLimit = 99999;
 
 typedef struct _station {
 	char name[20];
@@ -68,19 +67,17 @@ typedef struct _station {
 	int collisionCounter;
 	int droppedPackets;
 
-	
-	
 } Station;
 
 
 void generateBackoffTime(Station* station, int priority) {
 	if (priority == HIGH_PRIORITY) {
-		station->backoffTimeHighPriority = (((rand() % (station->CWHighPriorityUB + 1 - station->CWHighPriorityLB)) + station->CWHighPriorityLB) * slotTime);
+		station->backoffTimeHighPriority = (((rand() % (station->CWHighPriorityUB + 1 - station->CWHighPriorityLB)) + station->CWHighPriorityLB) * SLOT_TIME);
 	}
 	else if (priority == LOW_PRIORITY) {
-		station->backoffTimeLowPriority = (((rand() % (station->CWLowPriorityUB + 1 - station->CWLowPriorityLB)) + station->CWLowPriorityLB) * slotTime);
+		station->backoffTimeLowPriority = (((rand() % (station->CWLowPriorityUB + 1 - station->CWLowPriorityLB)) + station->CWLowPriorityLB) * SLOT_TIME);
 	}
-	
+
 }
 
 void createStations(Station* stations) {
@@ -98,7 +95,7 @@ void createStations(Station* stations) {
 
 		generateBackoffTime(&stations[i], HIGH_PRIORITY);
 		generateBackoffTime(&stations[i], LOW_PRIORITY);
-		
+
 	}
 }
 
@@ -117,7 +114,7 @@ void processPacket(Station* station, const char* packetStatus, int priority) {
 
 void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 	for (int i = 0; i < numberOfStations; i++) {
-		if (stations[i].backoffTimeHighPriority == 0 ) {
+		if (stations[i].backoffTimeHighPriority == 0) {
 			(*zeroBackoffTimeCounter)++;
 		}
 		if (stations[i].backoffTimeLowPriority == 0) {
@@ -126,18 +123,18 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 	}
 }
 
-void SCWDecreasingProcedureHighPriority(Station* station){
+void SCWDecreasingProcedureHighPriority(Station* station) {
 	if (station->CWHighPriorityLB - SF_HIGH_PRIORITY >= CW_MIN_HIGH_PRIORITY) {
 		station->CWHighPriorityLB = station->CWHighPriorityLB - SF_HIGH_PRIORITY;
 		station->CWHighPriorityUB = station->CWHighPriorityUB - SF_HIGH_PRIORITY;
 	}
-	else { 
+	else {
 		station->CWHighPriorityLB = CW_MIN_HIGH_PRIORITY;
 		station->CWHighPriorityUB = CW_MIN_HIGH_PRIORITY + SCW_SIZE_HIGH_PRIORITY;
 	}
 }
 
-void SCWIncreasingProcedureHighPriority(Station* station){
+void SCWIncreasingProcedureHighPriority(Station* station) {
 	if (station->CWHighPriorityUB + SF_HIGH_PRIORITY <= CW_MAX_HIGH_PRIORITY) {
 		station->CWHighPriorityLB = station->CWHighPriorityLB + SF_HIGH_PRIORITY;
 		station->CWHighPriorityUB = station->CWHighPriorityUB + SF_HIGH_PRIORITY;
@@ -148,7 +145,7 @@ void SCWIncreasingProcedureHighPriority(Station* station){
 	}
 }
 
-void SCWDecreasingProcedureLowPriority(Station* station){
+void SCWDecreasingProcedureLowPriority(Station* station) {
 	if (station->CWLowPriorityLB - SF_LOW_PRIORITY >= CW_MIN_LOW_PRIORITY) {
 		station->CWLowPriorityLB = station->CWLowPriorityLB - SF_LOW_PRIORITY;
 		station->CWLowPriorityUB = station->CWLowPriorityUB - SF_LOW_PRIORITY;
@@ -159,7 +156,7 @@ void SCWDecreasingProcedureLowPriority(Station* station){
 	}
 }
 
-void SCWIncreasingProcedureLowPriority(Station* station){
+void SCWIncreasingProcedureLowPriority(Station* station) {
 	if (station->CWLowPriorityUB + SF_HIGH_PRIORITY <= CW_MAX_LOW_PRIORITY) {
 		station->CWLowPriorityLB = station->CWLowPriorityLB + SF_LOW_PRIORITY;
 		station->CWLowPriorityUB = station->CWLowPriorityUB + SF_LOW_PRIORITY;
@@ -171,23 +168,24 @@ void SCWIncreasingProcedureLowPriority(Station* station){
 }
 
 void calculateSCWHighPriority(Station* station) {
-	double lossRate = (double) station->droppedPackets / (HIGH_PRIORITY_PACKETS - station->remainingHighPriorityPackets);
+	double lossRate = (double)station->droppedPackets / (HIGH_PRIORITY_PACKETS - station->remainingHighPriorityPackets);
 	if (lossRate >= ALPHA_HIGH_PRIORITY) {
 		SCWDecreasingProcedureHighPriority(station);
 	}
-	else if (lossRate <= (double) ALPHA_HIGH_PRIORITY / 2) {
+	else if (lossRate <= (double)ALPHA_HIGH_PRIORITY / 2) {
 		SCWIncreasingProcedureHighPriority(station);
 	}
 
 }
 
 void calculateSCWLowPriority(Station* station) {
-	double networkLoad = (double) mediumBusyCounter / slotTimeCounter; // B(T)
+	double networkLoad = (double)mediumBusyCounter / slotTimeCounter; // B(T)
+	//printf("\nNetwork load %2f \n", networkLoad);
 
 	if (networkLoad <= NETWORK_LOAD_SATURATION) {
 		SCWDecreasingProcedureLowPriority(station);
 	}
-	else if (networkLoad  >= NETWORK_LOAD_SATURATION) {
+	else if (networkLoad >= NETWORK_LOAD_SATURATION) {
 		SCWIncreasingProcedureLowPriority(station);
 	}
 
@@ -223,12 +221,9 @@ int main() {
 	printf("\nUnesite broj stanica u mrezi:\n");
 	scanf_s("%d", &numberOfStations);
 
-	printf("\nUnesite timeSlotCounter limit:\n");
-	scanf_s("%d", &slotTimeCounterLimit);
-
 	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
-	
+
 
 	while (slotTimeCounter < slotTimeCounterLimit) {
 
@@ -239,7 +234,7 @@ int main() {
 
 		for (int i = 0; i < numberOfStations; i++) {
 			int priority = 0;
-			
+
 			if (stations[i].backoffTimeHighPriority == 0 || stations[i].backoffTimeLowPriority == 0) {
 				if (stations[i].backoffTimeHighPriority == 0) {
 					priority = HIGH_PRIORITY;
@@ -250,8 +245,8 @@ int main() {
 				// printStationState(&stations[i]);
 				if (zeroBackoffTimeCounter == 1) {
 					processPacket(&stations[i], "POSLAN", priority);
-					simulationTime += timeACK;
-					transmittedDataSize += frameSize;
+					simulationTime += TIME_ACK;
+					transmittedDataSize += FRAME_SIZE;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
 				}
@@ -260,7 +255,7 @@ int main() {
 					//CalculateLr() aka Loss Rate;
 					// printf("Dogodila se kolizija\n");
 
-					if (stations[i].collisionCounter >= retryLimit) {
+					if (stations[i].collisionCounter >= RETRY_LIMIT) {
 						droppedPackets++;
 						processPacket(&stations[i], "ODBACEN", priority);
 						stations[i].droppedPackets++;
@@ -270,13 +265,13 @@ int main() {
 					calculateSCWHighPriority(&stations[i]);
 					if (stations[i].remainingHighPriorityPackets > 0) {
 						generateBackoffTime(&stations[i], priority);
-					
+
 					}
 					else {
 						stations[i].backoffTimeHighPriority = -1;
 					}
 				}
-				else if (priority == LOW_PRIORITY){
+				else if (priority == LOW_PRIORITY) {
 					calculateSCWLowPriority(&stations[i]);
 					if (stations[i].remainingLowPriorityPackets > 0) {
 						generateBackoffTime(&stations[i], priority);
@@ -284,12 +279,12 @@ int main() {
 					else {
 						stations[i].backoffTimeLowPriority = -1;
 					}
-				}	
+				}
 			}
 			else {
 				if (zeroBackoffTimeCounter == 0) {//medij je slobodan
-					stations[i].backoffTimeHighPriority -= slotTime;
-					stations[i].backoffTimeLowPriority -= slotTime;
+					stations[i].backoffTimeHighPriority -= SLOT_TIME;
+					stations[i].backoffTimeLowPriority -= SLOT_TIME;
 				}
 				else {
 					//medij nije slobodan
@@ -299,7 +294,7 @@ int main() {
 		}
 		if (zeroBackoffTimeCounter > 0) {
 			competitionCounter++;
-			simulationTime += timeToSend + SIFS + DIFS;
+			simulationTime += TIME_TO_SEND + SIFS + DIFS;
 
 			if (zeroBackoffTimeCounter > 1) {
 				numberOfCollisions++;
@@ -307,7 +302,7 @@ int main() {
 		}
 	}
 
-	competitionTime = slotTime * slotTimeCounter;
+	competitionTime = SLOT_TIME * slotTimeCounter;
 	simulationTime += competitionTime;
 
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
