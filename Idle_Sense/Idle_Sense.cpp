@@ -5,18 +5,21 @@
 #include <iostream>
 
 // KONSTANTE
-const int SLOT_TIME = 9; 	// 9us
-const int SIFS = 10; 	// us
+const int SLOT_TIME = 9; // us
+const int SIFS = 10; // us
 const int DIFS = 2 * SLOT_TIME + SIFS; // us 
 const int FRAME_SIZE = 1040 * 8; // bit
-const int dataRate = 6 * 1000000; 	// 6Mbps
-const int TIME_ACK = 50; // (us)
+const int TIME_ACK = 50; // us
 const int TIME_TO_SEND = 1454; //us, 
-
-const int CW_MAX = 1023;
-const int CW_MIN = 15;
+const int CW_MAX = 1024; // potrebno stavit na 1024
+const int CW_MIN = 16; //potrebno stavit na 16 i s tim testirat
 const int RETRY_LIMIT = 7;
 const int STATION_NUMBER_OF_PACKETS = 100000;
+double targetNumberOfConsecutiveIdleSlots = 3.91; //3.91;      // 802.11g
+double alpha = 1 / 1.0666;
+double beta = 0.75;
+int gamma = 4;
+int epsilon = 6; 
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -35,12 +38,7 @@ double packetSendProbability;
 double throughput; //propusnost
 int slotTimeCounterLimit = 99999;
 
-// IDLE SENSE
-double targetNumberOfConsecutiveIdleSlots = 3.91; // 802.11g
-double alpha = 1 / 1.0666;
-double beta = 0.75;
-int gamma = 4;
-int epsilon = 6;
+
 
 typedef struct _station {
 	char name[20];
@@ -68,7 +66,7 @@ void createStations(Station* stations) {
 		stations[i].CW = CW_MIN;
 		stations[i].sumOfConsecutiveIdleSlots = 0;
 		stations[i].numberOfTransmissions = 0;
-		stations[i].maxTransmissions = 5;
+		stations[i].maxTransmissions = 2 * numberOfStations; 
 		stations[i].numberOfConsecutiveIdleSlots = 0;
 		stations[i].slotTimeCounterPrevious = 0;
 		generateBackoffTime(&stations[i]);
@@ -93,7 +91,7 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 void calculateCW(Station* station) {
 	station->sumOfConsecutiveIdleSlots += station->numberOfConsecutiveIdleSlots;
 	station->numberOfTransmissions += 1;
-	//printf("sum %d ", sum);
+
 	if (station->numberOfTransmissions >= station->maxTransmissions) {
 		station->avgNumberOfConsecutiveIdleSlots = (double)station->sumOfConsecutiveIdleSlots / station->numberOfTransmissions;
 		station->sumOfConsecutiveIdleSlots = 0;
@@ -110,7 +108,7 @@ void calculateCW(Station* station) {
 			station->maxTransmissions = station->CW / gamma;
 		}
 		else {
-			station->maxTransmissions = 5;
+			station->maxTransmissions = 5 ;
 		}
 	}
 }
@@ -173,7 +171,7 @@ int main() {
 						processPacket(&stations[i], "ODBACEN");
 					}
 				}
-				stations[i].numberOfConsecutiveIdleSlots = slotTimeCounter - stations[i].slotTimeCounterPrevious; //ovo je dobro, provjerila sam
+				stations[i].numberOfConsecutiveIdleSlots = slotTimeCounter - stations[i].slotTimeCounterPrevious;
 				stations[i].slotTimeCounterPrevious = slotTimeCounter;
 				calculateCW(&stations[i]);
 
@@ -186,7 +184,7 @@ int main() {
 				}
 			}
 			else {
-				if (zeroBackoffTimeCounter == 0) {//medij je slobodan
+				if (zeroBackoffTimeCounter == 0) {
 					stations[i].backoffTime -= SLOT_TIME;
 				}
 			}
