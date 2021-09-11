@@ -9,17 +9,15 @@ const int SLOT_TIME = 9; // us
 const int SIFS = 10; // us
 const int DIFS = 2 * SLOT_TIME + SIFS; // us 
 const int FRAME_SIZE = 1040 * 8; // bit
-//const int dataRate = 6 * 1000000; 	// 6Mbps
-const int TIME_ACK = 50; // (us)
+const int TIME_ACK = 50; // us
 const int TIME_TO_SEND = 1454; //us,
-
-const int CW_MAX = 1023;
-const int CW_MIN = 15; //MIJENJA SE ZA TESTIRANJE
+const int CW_MAX = 1024;
+const int CW_MIN = 16; // 16,32
 const int RETRY_LIMIT = 7;
-const int STATION_NUMBER_OF_PACKETS = 100000; // 100000;
+const int STATION_NUMBER_OF_PACKETS = 100000; 
+const int FREEZING_LIMIT = 2; //2,6
 
-const int freezingLimit = 6; //MIJENJA SE ZA TESTIRANJE
-//k - granica zamrzavanja- za manji broj stanica neka je npr 50, a za veci broj neka je 0 ili 1 - MIJENJA SE ZA TESTIRANJE
+
 
 // AKUMULATORI
 int slotTimeCounter = 0; //broj nadmetanja
@@ -66,9 +64,6 @@ void createStations(Station* stations) {
 void processPacket(Station* station, const char* packetStatus) {
 	station->CW = CW_MIN;
 	station->remainingPackets--;
-	/* printf("\nPAKET %s ", packetStatus);
-	printf("\nPreostali broj paketa: %d\n ", station->remainingPackets);
-	printf("\nPreostalo %d paketa na mrezi ", numberOfPacketsOnNetwork); */
 }
 
 void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
@@ -80,7 +75,7 @@ void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
 }
 
 void calculateColisionCW(Station* station) {
-	int newCW = (station->CW * 2) + 1;
+	int newCW = (station->CW * 2);
 
 	if (newCW >= CW_MAX) {
 		station->CW = CW_MAX;
@@ -105,95 +100,93 @@ void printBackofTime(Station* stations) {
 }
 
 int main() {
-	srand(time(0));
+		srand(time(0));
 
-	printf("\nUnesite broj stanica u mrezi:\n");
-	scanf_s("%d", &numberOfStations);
+		printf("\nUnesite broj stanica u mrezi:\n");
+		scanf_s("%d", &numberOfStations);
 
-	//printf("\nUnesite timeSlotCounter limit:\n");
-	//scanf_s("%d", &slotTimeCounterLimit);
+		Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
+		createStations(stations);
 
-	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
-	createStations(stations);
+		while (slotTimeCounter < slotTimeCounterLimit) {
 
-	while (slotTimeCounter < slotTimeCounterLimit) {
+			slotTimeCounter++;
+			int zeroBackoffTimeCounter = 0;
 
-		slotTimeCounter++;
-		int zeroBackoffTimeCounter = 0;
-		
-		countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
+			countZeroBackoffTimes(stations, &zeroBackoffTimeCounter);
 
-		for (int i = 0; i < numberOfStations; i++) {
+			for (int i = 0; i < numberOfStations; i++) {
 
-			if (stations[i].backoffTime == 0) {
-				// printStationState(&stations[i]);
-				if (zeroBackoffTimeCounter == 1){
-					processPacket(&stations[i], "POSLAN");
-					simulationTime += TIME_ACK;
-					transmittedDataSize += FRAME_SIZE;
-					transmittedPackets++;
-					stations[i].collisionCounter = 0;
-				}
-				else {
-					stations[i].collisionCounter++;
-					// printf("Dogodila se kolizija\n");
-
-					if (stations[i].collisionCounter >= RETRY_LIMIT) {
-						droppedPackets++;
-						processPacket(&stations[i], "ODBACEN");
+				if (stations[i].backoffTime == 0) {
+					// printStationState(&stations[i]);
+					if (zeroBackoffTimeCounter == 1) {
+						processPacket(&stations[i], "POSLAN");
+						simulationTime += TIME_ACK;
+						transmittedDataSize += FRAME_SIZE;
+						transmittedPackets++;
+						stations[i].collisionCounter = 0;
 					}
 					else {
-						calculateColisionCW(&stations[i]);
+						stations[i].collisionCounter++;
+						// printf("Dogodila se kolizija\n");
+
+						if (stations[i].collisionCounter >= RETRY_LIMIT) {
+							droppedPackets++;
+							processPacket(&stations[i], "ODBACEN");
+						}
+						else {
+							calculateColisionCW(&stations[i]);
+						}
 					}
-				}
-				if (stations[i].remainingPackets > 0) {
-					generateBackoffTime(&stations[i]);
-					// printBackofTime(stations);
-				}
-				else {
-					stations[i].backoffTime = -1;
-				}	
-			}
-			else {
-				if (zeroBackoffTimeCounter >= 1) {
-					stations[i].freezingCounter++;
-					if (stations[i].freezingCounter > freezingLimit) {
+					if (stations[i].remainingPackets > 0) {
 						generateBackoffTime(&stations[i]);
+						// printBackofTime(stations);
+					}
+					else {
+						stations[i].backoffTime = -1;
 					}
 				}
 				else {
-					stations[i].backoffTime -= SLOT_TIME;
+					if (zeroBackoffTimeCounter >= 1) {
+						stations[i].freezingCounter++;
+						if (stations[i].freezingCounter > FREEZING_LIMIT) {
+							generateBackoffTime(&stations[i]);
+						}
+					}
+					else {
+						stations[i].backoffTime -= SLOT_TIME;
+					}
+				}
+			}
+			if (zeroBackoffTimeCounter > 0) {
+				competitionCounter++;
+				simulationTime += DIFS + TIME_TO_SEND + SIFS;
+
+				if (zeroBackoffTimeCounter > 1) {
+					numberOfCollisions++;
 				}
 			}
 		}
-		if (zeroBackoffTimeCounter > 0) {
-			competitionCounter++;
-			simulationTime += DIFS + TIME_TO_SEND + SIFS;
 
-			if (zeroBackoffTimeCounter > 1) {
-				numberOfCollisions++;
-			}
-		}	
-	}
+		competitionTime = SLOT_TIME * slotTimeCounter;
+		simulationTime += competitionTime;
 
-	competitionTime = SLOT_TIME * slotTimeCounter;
-	simulationTime += competitionTime;
+		collisionProbability = (double)numberOfCollisions / competitionCounter;
+		packetSendProbability = 1 - collisionProbability;
+		throughput = (double)transmittedDataSize / simulationTime;
 
-	collisionProbability = (double)numberOfCollisions / competitionCounter;
-	packetSendProbability = 1 - collisionProbability;
-	throughput = (double)transmittedDataSize / simulationTime;
-
-	printf("\n********** REZULTATI SIMULACIJE ZA CPCF **********\n");
-	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
-	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
-	printf("\nBroj kolizija: %d ", numberOfCollisions);
-	printf("\nBroj nadmetanja: %d ", competitionCounter);
-	printf("\nVrijeme nadmetanja: %2f (s) ", (double)competitionTime / 1000000);
-	printf("\nVrijeme trajanja simulacije: %2f (s)", (double)simulationTime / 1000000);
-	printf("\n");
-	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
-	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
-	printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
-	printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
-	printf("\n*********************************************************\n");
+		printf("\n*** REZULTATI SIMULACIJE ZA CPCF (CWmin = %d, k = %d) ***\n", CW_MIN, FREEZING_LIMIT);
+		printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
+		printf("\nBroj odbacenih paketa: %d ", droppedPackets);
+		printf("\nBroj kolizija: %d ", numberOfCollisions);
+		printf("\nBroj nadmetanja: %d ", competitionCounter);
+		printf("\nVrijeme nadmetanja: %2f (s) ", (double)competitionTime / 1000000);
+		printf("\nVrijeme trajanja simulacije: %2f (s)", (double)simulationTime / 1000000);
+		printf("\n");
+		printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
+		printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
+		printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+		printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
+		printf("\n*********************************************************\n");
+	
 }
