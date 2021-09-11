@@ -5,16 +5,12 @@
 #include <iostream>
 
 // KONSTANTE
-const int SLOT_TIME = 9; 	// 9us
-const int SIFS = 10; 	// us
+const int SLOT_TIME = 9; // us
+const int SIFS = 10; // us
 const int DIFS = 2 * SLOT_TIME + SIFS; // us 
 const int FRAME_SIZE = 1040 * 8; // bit
-const int dataRate = 6 * 1000000; 	// 6Mbps
-const int TIME_ACK = 50; // (us)
-const int TIME_TO_SEND = 1454; //us, 
-
-//const int CWmax = 1023;
-//const int CWmin = 15;
+const int TIME_ACK = 50; // us
+const int TIME_TO_SEND = 1454; // us, 
 const int RETRY_LIMIT = 7;
 const int HIGH_PRIORITY_PACKETS = 100000;
 const int LOW_PRIORITY_PACKETS = 100000;
@@ -28,10 +24,8 @@ const int SF_HIGH_PRIORITY = 16;
 const int SF_LOW_PRIORITY = 128;
 const int SCW_SIZE_HIGH_PRIORITY = 32;
 const int SCW_SIZE_LOW_PRIORITY = 256;
-
 const int ALPHA_HIGH_PRIORITY = 5;
-const int ALPHA_LOW_PRIORITY = 99999;//ne postoji oganicenje
-
+const int ALPHA_LOW_PRIORITY = 99999;  //ne postoji oganicenje
 const double NETWORK_LOAD_TRESHOLD = 0.7;
 const double NETWORK_LOAD_SATURATION = 0.9;
 
@@ -72,12 +66,13 @@ typedef struct _station {
 
 void generateBackoffTime(Station* station, int priority) {
 	if (priority == HIGH_PRIORITY) {
-		station->backoffTimeHighPriority = (((rand() % (station->CWHighPriorityUB + 1 - station->CWHighPriorityLB)) + station->CWHighPriorityLB) * SLOT_TIME);
+		station->backoffTimeHighPriority = (((rand() % (station->CWHighPriorityUB + 1 - station->CWHighPriorityLB)) 
+														+ station->CWHighPriorityLB) * SLOT_TIME);
 	}
 	else if (priority == LOW_PRIORITY) {
-		station->backoffTimeLowPriority = (((rand() % (station->CWLowPriorityUB + 1 - station->CWLowPriorityLB)) + station->CWLowPriorityLB) * SLOT_TIME);
+		station->backoffTimeLowPriority = (((rand() % (station->CWLowPriorityUB + 1 - station->CWLowPriorityLB)) 
+														+ station->CWLowPriorityLB) * SLOT_TIME);
 	}
-
 }
 
 void createStations(Station* stations) {
@@ -87,12 +82,10 @@ void createStations(Station* stations) {
 		stations[i].remainingHighPriorityPackets = HIGH_PRIORITY_PACKETS;
 		stations[i].remainingLowPriorityPackets = LOW_PRIORITY_PACKETS;
 		stations[i].droppedPackets = 0;
-
 		stations[i].CWHighPriorityLB = CW_MIN_HIGH_PRIORITY;
 		stations[i].CWHighPriorityUB = CW_MIN_HIGH_PRIORITY + 2 * SF_HIGH_PRIORITY;
 		stations[i].CWLowPriorityLB = CW_MIN_LOW_PRIORITY;
 		stations[i].CWLowPriorityUB = CW_MIN_LOW_PRIORITY + 2 * SF_LOW_PRIORITY;
-
 		generateBackoffTime(&stations[i], HIGH_PRIORITY);
 		generateBackoffTime(&stations[i], LOW_PRIORITY);
 
@@ -175,20 +168,16 @@ void calculateSCWHighPriority(Station* station) {
 	else if (lossRate <= (double)ALPHA_HIGH_PRIORITY / 2) {
 		SCWIncreasingProcedureHighPriority(station);
 	}
-
 }
 
 void calculateSCWLowPriority(Station* station) {
-	double networkLoad = (double)mediumBusyCounter / slotTimeCounter; // B(T)
-	//printf("\nNetwork load %2f \n", networkLoad);
-
+	double networkLoad = (double)mediumBusyCounter / slotTimeCounter; 
 	if (networkLoad <= NETWORK_LOAD_SATURATION) {
 		SCWDecreasingProcedureLowPriority(station);
 	}
 	else if (networkLoad >= NETWORK_LOAD_SATURATION) {
 		SCWIncreasingProcedureLowPriority(station);
 	}
-
 }
 
 void printStationState(Station* station) {
@@ -224,7 +213,6 @@ int main() {
 	Station* stations = (Station*)malloc(sizeof(Station) * numberOfStations);
 	createStations(stations);
 
-
 	while (slotTimeCounter < slotTimeCounterLimit) {
 
 		slotTimeCounter++;
@@ -252,9 +240,6 @@ int main() {
 				}
 				else {
 					stations[i].collisionCounter++;
-					//CalculateLr() aka Loss Rate;
-					// printf("Dogodila se kolizija\n");
-
 					if (stations[i].collisionCounter >= RETRY_LIMIT) {
 						droppedPackets++;
 						processPacket(&stations[i], "ODBACEN", priority);
@@ -282,7 +267,7 @@ int main() {
 				}
 			}
 			else {
-				if (zeroBackoffTimeCounter == 0) {//medij je slobodan
+				if (zeroBackoffTimeCounter == 0) {                        //medij je slobodan
 					stations[i].backoffTimeHighPriority -= SLOT_TIME;
 					stations[i].backoffTimeLowPriority -= SLOT_TIME;
 				}
@@ -304,7 +289,6 @@ int main() {
 
 	competitionTime = SLOT_TIME * slotTimeCounter;
 	simulationTime += competitionTime;
-
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
