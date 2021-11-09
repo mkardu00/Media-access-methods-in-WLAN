@@ -12,20 +12,22 @@ const int FRAME_SIZE = 1040 * 8; // bit
 const int TIME_ACK = 50; // us
 const int TIME_TO_SEND = 1454; //us,
 const int CW_MAX = 1024;
-const int CW_MIN = 16; // 16,32
+const int CW_MIN = 32; // 16,32
 const int RETRY_LIMIT = 7;
 const int STATION_NUMBER_OF_PACKETS = 100000; 
-const int FREEZING_LIMIT = 2; //2,6
+const int FREEZING_LIMIT = 0; //2,6
 
 
 
 // AKUMULATORI
-int slotTimeCounter = 0; //broj nadmetanja
+int slotTimeCounter = 0; 
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
-int competitionTime = 0; //trajanje nadmetanja
+int slotTimeTotal = 0; 
 int competitionCounter = 0;
+int lastSlotTimeCounterWithCompetition = 0;
+int competitionTime = 0;
 long long int simulationTime = DIFS;
 long long int transmittedDataSize = 0;
 
@@ -159,6 +161,7 @@ int main() {
 				}
 			}
 			if (zeroBackoffTimeCounter > 0) {
+				lastSlotTimeCounterWithCompetition = slotTimeCounter;
 				competitionCounter++;
 				simulationTime += DIFS + TIME_TO_SEND + SIFS;
 
@@ -168,13 +171,13 @@ int main() {
 			}
 		}
 
-		competitionTime = SLOT_TIME * slotTimeCounter;
-		simulationTime += competitionTime;
+		slotTimeTotal = SLOT_TIME * slotTimeCounter;
+		simulationTime += slotTimeTotal;
 
 		collisionProbability = (double)numberOfCollisions / competitionCounter;
 		packetSendProbability = 1 - collisionProbability;
 		throughput = (double)transmittedDataSize / simulationTime;
-
+		competitionTime = SLOT_TIME * lastSlotTimeCounterWithCompetition;
 		printf("\n*** REZULTATI SIMULACIJE ZA CPCF (CWmin = %d, k = %d) ***\n", CW_MIN, FREEZING_LIMIT);
 		printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 		printf("\nBroj odbacenih paketa: %d ", droppedPackets);
@@ -186,6 +189,7 @@ int main() {
 		printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
 		printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
 		printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+		printf("\nProsjecno trajanje jednog nadmetanja: %3f (ms) ", ((double)competitionTime / 1000) / competitionCounter);
 		printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
 		printf("\n*********************************************************\n");
 	

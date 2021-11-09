@@ -24,16 +24,18 @@ W5 = [512, 1023]
 */
 
 // AKUMULATORI
-int slotTimeCounter = 0; //broj nadmetanja
+int slotTimeCounter = 0; 
 int mediumBusyCounter = 0;
-
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
-int competitionTime = 0;//trajanje nadmetanja
+int slotTimeTotal = 0;
 int competitionCounter = 0;
+int lastSlotTimeCounterWithCompetition = 0;
+int competitionTime = 0;
 long long int simulationTime = DIFS;
 long long int transmittedDataSize = 0;
+
 
 // OSTALO
 int numberOfStations;
@@ -63,7 +65,7 @@ void generateBackoffTime(Station* station) {
 
 	station->backoffTime = (
 		(
-			(rand() % (cw.shiftedMax + 1 - cw.shiftedMin)) + cw.shiftedMax
+			(rand() % (cw.shiftedMax + 1 - cw.shiftedMin)) + cw.shiftedMin
 		) * SLOT_TIME
 	);
 }
@@ -119,7 +121,8 @@ int main() {
 					transmittedDataSize += FRAME_SIZE;
 					transmittedPackets++;
 					stations[i].collisionCounter = 0;
-					stations[i].CWIndex = (stations[i].CWIndex != 0) ? stations[i].CWIndex-- : 0;
+					if (stations[i].CWIndex != 0)
+						stations[i].CWIndex--;
 				}
 				else {
 					stations[i].collisionCounter++;
@@ -130,7 +133,8 @@ int main() {
 						stations[i].CWIndex = 0;
 					}
 					else {
-						stations[i].CWIndex = (stations[i].CWIndex != 5) ? stations[i].CWIndex++ : 5;
+						if (stations[i].CWIndex != 5)
+							stations[i].CWIndex++;
 					}
 				}
 				if (stations[i].remainingPackets > 0) {
@@ -141,7 +145,7 @@ int main() {
 				}
 			}
 			else {
-				if (zeroBackoffTimeCounter == 0) {                        //medij je slobodan
+				if (zeroBackoffTimeCounter == 0) {                      
 					stations[i].backoffTime -= SLOT_TIME;
 				}
 				else {
@@ -150,6 +154,7 @@ int main() {
 			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
+			lastSlotTimeCounterWithCompetition = slotTimeCounter;
 			competitionCounter++;
 			simulationTime += TIME_TO_SEND + SIFS + DIFS;
 
@@ -159,12 +164,12 @@ int main() {
 		}
 	}
 
-	competitionTime = SLOT_TIME * slotTimeCounter;
-	simulationTime += competitionTime;
+	slotTimeTotal = SLOT_TIME * slotTimeCounter;
+	simulationTime += slotTimeTotal;
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
-
+	competitionTime = SLOT_TIME * lastSlotTimeCounterWithCompetition;
 	printf("\n********** REZULTATI SIMULACIJE ZA SCW **********\n");
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
@@ -176,6 +181,7 @@ int main() {
 	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
 	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
 	printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+	printf("\nProsjecno trajanje jednog nadmetanja: %3f (ms) ", ((double)competitionTime / 1000) / competitionCounter);
 	printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
 	printf("\n*********************************************************\n");
 }

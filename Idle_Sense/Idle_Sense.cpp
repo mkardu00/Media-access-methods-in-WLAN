@@ -7,27 +7,29 @@
 // KONSTANTE
 const int SLOT_TIME = 9; // us
 const int SIFS = 10; // us
-const int DIFS = 2 * SLOT_TIME + SIFS; // us 
-const int FRAME_SIZE = 1040 * 8; // bit
-const int TIME_ACK = 50; // us
-const int TIME_TO_SEND = 1454; //us, 
-const int CW_MAX = 1024; // potrebno stavit na 1024
-const int CW_MIN = 16; //potrebno stavit na 16 i s tim testirat
+const int DIFS = 2 * SLOT_TIME + SIFS;// us 
+const int FRAME_SIZE = 1040 * 8;// bit
+const int TIME_ACK = 50;// us
+const int TIME_TO_SEND = 1454;//us, 
+const int CW_MAX = 1024;                         
+const int CW_MIN = 16;                             
 const int RETRY_LIMIT = 7;
 const int STATION_NUMBER_OF_PACKETS = 100000;
-double targetNumberOfConsecutiveIdleSlots = 3.91; //3.91;      // 802.11g
+double targetNumberOfConsecutiveIdleSlots = 3.91; // 802.11g
 double alpha = 1 / 1.0666;
 double beta = 0.75;
 int gamma = 4;
 int epsilon = 6; 
 
 // AKUMULATORI
-int slotTimeCounter = 0; //broj nadmetanja
+int slotTimeCounter = 0; 
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
-int competitionTime = 0;//trajanje nadmetanja
+int slotTimeTotal = 0;
 int competitionCounter = 0;
+int lastSlotTimeCounterWithCompetition = 0;
+int competitionTime = 0;
 long long int simulationTime = DIFS;
 long long int transmittedDataSize = 0;
 
@@ -190,6 +192,7 @@ int main() {
 			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
+			lastSlotTimeCounterWithCompetition = slotTimeCounter;
 			competitionCounter++;
 			simulationTime += TIME_TO_SEND + SIFS + DIFS;
 
@@ -199,13 +202,13 @@ int main() {
 		}
 	}
 
-	competitionTime = SLOT_TIME * slotTimeCounter;
-	simulationTime += competitionTime;
+	slotTimeTotal = SLOT_TIME * slotTimeCounter;
+	simulationTime += slotTimeTotal;
 
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
-
+	competitionTime = SLOT_TIME * lastSlotTimeCounterWithCompetition;
 	printf("\n********** REZULTATI SIMULACIJE ZA IDLE SENSE **********\n");
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
@@ -217,6 +220,7 @@ int main() {
 	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
 	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
 	printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+	printf("\nProsjecno trajanje jednog nadmetanja: %3f (ms) ", ((double)competitionTime / 1000) / competitionCounter);
 	printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
 	printf("\n*********************************************************\n");
 }

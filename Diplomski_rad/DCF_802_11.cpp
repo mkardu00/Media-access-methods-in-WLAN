@@ -12,17 +12,20 @@ const int FRAME_SIZE = 1040 * 8; // bit
 const int TIME_ACK = 50; // us
 const int TIME_TO_SEND = 1454; //us, 
 const int CW_MAX = 1024;
-const int CW_MIN = 16; // 16 ili 32
+const int CW_MIN = 64; // 16, 32, 64, 128
 const int RETRY_LIMIT = 7;
 const int STATION_NUMBER_OF_PACKETS = 100000;
 
 // AKUMULATORI
-int slotTimeCounter = 0; //broj nadmetanja
+int slotTimeCounter = 0; //broj iteracija
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
-int competitionTime = 0; //trajanje nadmetanja
+int slotTimeTotal = 0; //ukupno trajanje iteracija
 int competitionCounter = 0; //brojač nadmetanja u kojima je neka stanica pobijedila
+int lastSlotTimeCounterWithCompetition = 0;
+int competitionTime = 0;
+
 long long int simulationTime = DIFS;
 long long int transmittedDataSize = 0;
 
@@ -154,6 +157,7 @@ int main() {
 				}
 			}
 			if (zeroBackoffTimeCounter > 0) {
+				lastSlotTimeCounterWithCompetition = slotTimeCounter;
 				competitionCounter++;
 				simulationTime += TIME_TO_SEND + SIFS + DIFS;
 
@@ -162,23 +166,25 @@ int main() {
 				}
 			}
 		}
-		competitionTime = SLOT_TIME * slotTimeCounter;
-		simulationTime += competitionTime;
+		slotTimeTotal = SLOT_TIME * slotTimeCounter;
+		simulationTime += slotTimeTotal;
 		collisionProbability = (double)numberOfCollisions / competitionCounter;
 		packetSendProbability = 1 - collisionProbability;
 		throughput = (double)transmittedDataSize / simulationTime;
+		competitionTime = SLOT_TIME * lastSlotTimeCounterWithCompetition;
 
 		printf("\n******REZULTATI SIMULACIJE ZA DCF 802.11 (CWmin = %d)******\n", CW_MIN);
 		printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 		printf("\nBroj odbacenih paketa: %d ", droppedPackets);
 		printf("\nBroj kolizija: %d ", numberOfCollisions);
 		printf("\nBroj nadmetanja: %d ", competitionCounter);
-		printf("\nVrijeme nadmetanja: %2f (s) ", (double)competitionTime / 1000000);
+		printf("\nVrijeme nadmetanja: %2f (s) ", (double)competitionTime/ 1000000);
 		printf("\nVrijeme trajanja simulacije: %2f (s)", (double)simulationTime / 1000000);
 		printf("\n");
 		printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
 		printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
 		printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+		printf("\nProsjecno trajanje jednog nadmetanja: %3f (ms) ", ((double)competitionTime / 1000)/competitionCounter);
 		printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
 		printf("\n*********************************************************\n");
 }

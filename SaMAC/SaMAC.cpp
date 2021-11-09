@@ -15,29 +15,31 @@ const int CW_MAX = 1024;
 const int CW_MIN = 16;                  
 const int RETRY_LIMIT = 7;
 const int STATION_NUMBER_OF_PACKETS = 200000;
-const int FREEZING_LIMIT = 4;// 2 ili 4
-const int CW_SHIFTED = 47;                          //da je do 47                       
-const int CW_SHIFTED_MIN = 16;                            //16 stavit da je odi 16                            
+const int FREEZING_LIMIT = 2;// 2 ili 4
+const int CW_SHIFTED = 47;                                            
+const int CW_SHIFTED_MIN = 16;                                                    
 
-														  //za svaki protokol 
+														
 
 // AKUMULATORI
-int slotTimeCounter = 0; //broj nadmetanja
+int slotTimeCounter = 0;
 int droppedPackets = 0;
 int transmittedPackets = 0;
 int numberOfCollisions = 0;
-int competitionTime = 0;//trajanje nadmetanja
+int slotTimeTotal = 0;
 int competitionCounter = 0;
+int lastSlotTimeCounterWithCompetition = 0;
+int competitionTime = 0;
 long long int simulationTime = DIFS;
 long long int transmittedDataSize = 0;
 
 // OSTALO
-int numberOfStations;	// broj stanica u mrezi (networkSize x networkSize)
+int numberOfStations;	
 double collisionProbability;
 double packetSendProbability;
 double throughput; //propusnost
 int slotTimeCounterLimit = 199999;
-int numberOfActiveStations; // broj aktivnih stanica, potrebo da bi se detktirala zagusenost mreze
+
 
 
 typedef struct _station {
@@ -72,9 +74,6 @@ void createStations(Station* stations) {
 void processPacket(Station* station, const char* packetStatus) {
 	station->CW = CW_MIN;
 	station->remainingPackets--;
-	if (station->remainingPackets == 0) {
-		numberOfActiveStations--;
-	}
 }
 
 void countZeroBackoffTimes(Station* stations, int* zeroBackoffTimeCounter) {
@@ -155,6 +154,7 @@ int main() {
 			}
 		}
 		if (zeroBackoffTimeCounter > 0) {
+			lastSlotTimeCounterWithCompetition = slotTimeCounter;
 			competitionCounter++;
 			simulationTime += TIME_TO_SEND + SIFS + DIFS;
 
@@ -164,13 +164,13 @@ int main() {
 		}
 	}
 
-	competitionTime = SLOT_TIME * slotTimeCounter;
-	simulationTime += competitionTime;
+	slotTimeTotal = SLOT_TIME * slotTimeCounter;
+	simulationTime += slotTimeTotal;
 
 	collisionProbability = (double)numberOfCollisions / competitionCounter;
 	packetSendProbability = 1 - collisionProbability;
 	throughput = (double)transmittedDataSize / simulationTime;
-
+	competitionTime = SLOT_TIME * lastSlotTimeCounterWithCompetition;
 	printf("\n***REZULTATI SIMULACIJE ZA SaMAC (CW = %d, CWmin = %d, k = %d)***\n", CW_SHIFTED, CW_SHIFTED_MIN, FREEZING_LIMIT);
 	printf("\nBroj uspjesno poslanih paketa: %d ", transmittedPackets);
 	printf("\nBroj odbacenih paketa: %d ", droppedPackets);
@@ -182,6 +182,7 @@ int main() {
 	printf("\nVjerojatnost kolizije: %2f ", collisionProbability);
 	printf("\nVjerojatnost uspjesnog slanja: %2f ", packetSendProbability);
 	printf("\n\nUkupna velicina poslanih podataka: %2f (Mb) ", (double)transmittedDataSize / 1000000);
+	printf("\nProsjecno trajanje jednog nadmetanja: %3f (ms) ", ((double)competitionTime / 1000) / competitionCounter);
 	printf("\nPropusnost: %2f (Mb/s)\n ", throughput);
 	printf("\n*********************************************************\n");
 }
